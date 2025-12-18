@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { base44 } from '@/api/base44Client';
 import ReceiptReviewPanel from '../components/admin/ReceiptReviewPanel';
 import AIBulkTraining from '../components/admin/AIBulkTraining';
+import AILearningTab from '../components/admin/AILearningTab';
 import StatsCard from '../components/stats/StatsCard';
 import { format } from 'date-fns';
 
@@ -57,6 +58,15 @@ export default function Admin() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['corrections'] });
+    },
+  });
+
+  const updateFeedbackMutation = useMutation({
+    mutationFn: async ({ id, data }) => {
+      return base44.entities.AIFeedback.update(id, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['feedback'] });
     },
   });
 
@@ -222,11 +232,15 @@ export default function Admin() {
             </TabsTrigger>
             <TabsTrigger value="training" className="gap-2">
               <Sparkles className="w-4 h-4" />
-              AI Training
+              AI Bulk Training
+            </TabsTrigger>
+            <TabsTrigger value="learning" className="gap-2">
+              <Sparkles className="w-4 h-4" />
+              AI Learning
             </TabsTrigger>
             <TabsTrigger value="corrections" className="gap-2">
               <AlertCircle className="w-4 h-4" />
-              Correction History
+              Corrections
             </TabsTrigger>
           </TabsList>
 
@@ -366,63 +380,20 @@ export default function Admin() {
             </div>
           </TabsContent>
 
-          {/* AI Training Tab */}
+          {/* AI Bulk Training Tab */}
           <TabsContent value="training">
             <div className="h-[calc(100vh-300px)]">
               <AIBulkTraining />
             </div>
+          </TabsContent>
 
-            {/* Learned Rules Section Below */}
-            <div className="mt-6">
-              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-200">
-                  <h3 className="font-semibold text-slate-800">Learned Rules & Patterns</h3>
-                  <p className="text-sm text-slate-500">Rules extracted from your training feedback</p>
-                </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
-                  {feedbackList.filter(f => f.rule_learned).map((feedback, index) => (
-                    <motion.div
-                      key={feedback.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="p-4 bg-slate-50 rounded-xl border border-slate-200"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
-                          <Sparkles className="w-4 h-4 text-indigo-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-slate-800 mb-1">
-                            {feedback.rule_learned}
-                          </p>
-                          <p className="text-xs text-slate-500 line-clamp-2 mb-2">
-                            "{feedback.user_message}"
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {feedback.feedback_type}
-                            </Badge>
-                            {feedback.is_applied && (
-                              <Badge className="bg-green-100 text-green-700 text-xs">
-                                Applied
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                  {feedbackList.filter(f => f.rule_learned).length === 0 && (
-                    <div className="col-span-full text-center py-12 text-slate-500">
-                      <Sparkles className="w-8 h-8 mx-auto mb-3 text-slate-300" />
-                      <p>No rules learned yet</p>
-                      <p className="text-sm">Upload a file and review extractions to train the AI</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+          {/* AI Learning Tab */}
+          <TabsContent value="learning">
+            <AILearningTab
+              feedbackList={feedbackList}
+              corrections={corrections}
+              onUpdateFeedback={(id, data) => updateFeedbackMutation.mutate({ id, data })}
+            />
           </TabsContent>
 
 
