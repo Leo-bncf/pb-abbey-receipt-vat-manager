@@ -1,79 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, FileText, Calendar, Building2, MapPin, Coins, 
-  Percent, CheckCircle, AlertCircle, ExternalLink, Copy, Loader2
+  Percent, CheckCircle, AlertCircle, ExternalLink, Copy, Info
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { base44 } from '@/api/base44Client';
 
 export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
-  const [croppedImageUrl, setCroppedImageUrl] = useState(null);
-  const [isLoadingCrop, setIsLoadingCrop] = useState(false);
-
-  useEffect(() => {
-    if (isOpen && receipt && receipt.file_url && receipt.file_type !== 'pdf') {
-      cropReceiptImage();
-    }
-  }, [isOpen, receipt?.id]);
-
-  const cropReceiptImage = async () => {
-    // Always try to show just the relevant receipt if it's from a multi-receipt file
-    const isMultiReceipt = receipt.extraction_notes?.includes('receipts from same image') || 
-                           receipt.file_name?.includes('[');
-    
-    if (!isMultiReceipt) {
-      setCroppedImageUrl(receipt.file_url);
-      return;
-    }
-
-    setIsLoadingCrop(true);
-    try {
-      // Extract location info from extraction notes
-      const locationMatch = receipt.extraction_notes?.match(/\[Location: ([^\]]+)\]/);
-      const location = locationMatch ? locationMatch[1] : '';
-
-      // Ask AI to extract just this receipt as an image
-      const cropPrompt = `CRITICAL TASK: Extract and return ONLY the specific receipt I'm requesting from this ${receipt.file_type === 'pdf' ? 'PDF document' : 'image'}.
-
-TARGET RECEIPT IDENTIFICATION:
-${location ? `- Location: ${location}` : ''}
-- Vendor: "${receipt.vendor_name}"
-- Receipt Date: ${receipt.receipt_date}
-- Total Amount: ${receipt.total_amount} ${receipt.currency}
-
-EXTRACTION REQUIREMENTS:
-1. Locate the exact receipt matching these details
-2. Extract/crop ONLY this single receipt
-3. Remove all other receipts, pages, or content completely
-4. Maintain maximum sharpness and resolution
-5. Include small margin around receipt edges (2-3%)
-6. Output should show JUST this one receipt clearly readable
-
-The result must be a standalone image of this one receipt only - not a page with multiple receipts.`;
-
-      const result = await base44.integrations.Core.GenerateImage({
-        prompt: cropPrompt,
-        existing_image_urls: [receipt.file_url]
-      });
-
-      if (result?.url) {
-        setCroppedImageUrl(result.url);
-      } else {
-        throw new Error('No image URL returned');
-      }
-    } catch (error) {
-      console.error('Failed to crop receipt:', error);
-      // Fallback: show original
-      setCroppedImageUrl(receipt.file_url);
-    } finally {
-      setIsLoadingCrop(false);
-    }
-  };
-
   if (!isOpen || !receipt) return null;
+
+  // Check if this is from a multi-receipt file
+  const isMultiReceipt = receipt.extraction_notes?.includes('receipts from same image') || 
+                         receipt.file_name?.includes('[');
+  const locationMatch = receipt.extraction_notes?.match(/\[Location: ([^\]]+)\]/);
+  const location = locationMatch ? locationMatch[1] : null;
 
   const formatCurrency = (amount, currency) => {
     if (!amount && amount !== 0) return '-';
@@ -133,24 +75,22 @@ The result must be a standalone image of this one receipt only - not a page with
           <div className="flex flex-col lg:flex-row max-h-[calc(90vh-80px)] overflow-hidden">
             {/* Left: Image Preview */}
             <div className="lg:w-1/2 p-6 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-700">
-              <div className="aspect-[3/4] rounded-xl bg-slate-800 border border-slate-700 overflow-auto relative">
-                {isLoadingCrop ? (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <div className="text-center">
-                      <Loader2 className="w-12 h-12 text-indigo-400 animate-spin mx-auto mb-3" />
-                      <p className="text-slate-400 text-sm">Extracting receipt preview...</p>
-                      <p className="text-slate-500 text-xs mt-2">This may take 10-15 seconds</p>
-                    </div>
+              {isMultiReceipt && location && (
+                <div className="mb-4 p-3 bg-amber-500/20 border border-amber-500/30 rounded-lg flex items-start gap-2">
+                  <Info className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-amber-200 font-medium">Multi-receipt file</p>
+                    <p className="text-xs text-amber-300 mt-1">
+                      This receipt is located at: <span className="font-semibold">{location}</span>
+                    </p>
+                    <p className="text-xs text-amber-400 mt-1">
+                      Look for vendor "{receipt.vendor_name}" with total {receipt.total_amount} {receipt.currency}
+                    </p>
                   </div>
-                ) : croppedImageUrl ? (
-                  <img 
-                    src={croppedImageUrl} 
-                    alt="Receipt" 
-                    className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition-all"
-                    onClick={() => window.open(croppedImageUrl, '_blank')}
-                    style={{ imageRendering: 'crisp-edges' }}
-                  />
-                ) : receipt.file_url ? (
+                </div>
+              )}
+              <div className="aspect-[3/4] rounded-xl bg-slate-800 border border-slate-700 overflow-auto relative">
+                {receipt.file_url ? (
                   receipt.file_type === 'pdf' ? (
                     <iframe 
                       src={receipt.file_url} 
@@ -172,30 +112,15 @@ The result must be a standalone image of this one receipt only - not a page with
                   </div>
                 )}
               </div>
-              <div className="flex gap-2 mt-4">
-                {receipt.file_url && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700"
-                    onClick={() => window.open(receipt.file_url, '_blank')}
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Full Page
-                  </Button>
-                )}
-                {croppedImageUrl && croppedImageUrl !== receipt.file_url && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700"
-                    onClick={() => window.open(croppedImageUrl, '_blank')}
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Cropped
-                  </Button>
-                )}
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4 w-full bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700"
+                onClick={() => window.open(receipt.file_url, '_blank')}
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Open Full Size
+              </Button>
             </div>
 
             {/* Right: Extracted Data */}
