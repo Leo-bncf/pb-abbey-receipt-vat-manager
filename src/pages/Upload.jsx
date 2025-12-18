@@ -120,9 +120,33 @@ export default function Upload() {
     - confidence_score: Your confidence 0-100 in the accuracy of extracted data
     - receipt_location: Where in image this receipt is located (e.g., "top-left", "center", "page 6")
 
-    VAT CALCULATION RULES:
-    If VAT not explicit but country identified, calculate:
-    - UK: 20% → VAT = Total × (20/120)
+    UK VAT DECISION LOGIC (CRITICAL - FOLLOW EXACTLY):
+
+    STEP 1: Check if supplier is VAT-registered (look for VAT number on receipt)
+    - If NO VAT number found → vat_rate = 0, vat_amount = 0, extraction_notes += "No VAT number - supplier not VAT-registered"
+    - If YES → Continue to STEP 2
+
+    STEP 2: Determine VAT category based on items/services:
+
+    CATEGORY A — VAT-EXEMPT (NO VAT):
+    - Medical/dental care, NHS, education, insurance, banking, loans, residential rent, council tax, postage stamps
+    → vat_rate = 0, vat_amount = 0, extraction_notes += "VAT-exempt items"
+
+    CATEGORY B — ZERO-RATED (0% VAT but reclaimable):
+    - Basic food (not hot takeaway/alcohol), children's clothing, books, newspapers, water supply, public transport
+    → vat_rate = 0, vat_amount = 0, extraction_notes += "Zero-rated items"
+
+    CATEGORY C — REDUCED-RATED (5% VAT):
+    - Domestic fuel/power (gas, electricity), energy-saving materials
+    → vat_rate = 5, VAT = Total × (5/105)
+
+    CATEGORY D — STANDARD-RATED (20% VAT):
+    - Restaurant meals, hot takeaways, alcohol, adult clothing, electronics, fuel (petrol/diesel), hotels, professional services
+    → vat_rate = 20, VAT = Total × (20/120)
+
+    DEFAULT: If category unclear → assume STANDARD-RATED (20%)
+
+    OTHER COUNTRIES VAT CALCULATION:
     - Germany: 19% → VAT = Total × (19/119)
     - France: 20% → VAT = Total × (20/120)
     - Netherlands: 21% → VAT = Total × (21/121)
