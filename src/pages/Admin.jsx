@@ -13,8 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { base44 } from '@/api/base44Client';
 import ReceiptReviewPanel from '../components/admin/ReceiptReviewPanel';
-import AIFeedbackChat from '../components/admin/AIFeedbackChat';
-import AITrainingPanel from '../components/admin/AITrainingPanel';
+import AIBulkTraining from '../components/admin/AIBulkTraining';
 import StatsCard from '../components/stats/StatsCard';
 import { format } from 'date-fns';
 
@@ -369,91 +368,8 @@ export default function Admin() {
 
           {/* AI Training Tab */}
           <TabsContent value="training">
-            <div className="flex gap-6">
-              {/* Receipt List */}
-              <div className="w-1/4 space-y-4">
-                <div className="bg-white rounded-xl border border-slate-200 p-4">
-                  <div className="relative">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <Input
-                      placeholder="Search..."
-                      value={trainingSearchQuery}
-                      onChange={(e) => setTrainingSearchQuery(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-slate-200">
-                    <p className="text-sm text-slate-600">
-                      {receipts.filter(r => 
-                        !trainingSearchQuery || 
-                        r.vendor_name?.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-                        r.file_name?.toLowerCase().includes(trainingSearchQuery.toLowerCase())
-                      ).length} receipts
-                    </p>
-                  </div>
-                  <div className="max-h-[calc(100vh-450px)] overflow-y-auto divide-y divide-slate-100">
-                    {receipts
-                      .filter(r => 
-                        !trainingSearchQuery || 
-                        r.vendor_name?.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
-                        r.file_name?.toLowerCase().includes(trainingSearchQuery.toLowerCase())
-                      )
-                      .map((receipt) => (
-                        <motion.button
-                          key={receipt.id}
-                          onClick={() => setTrainingReceipt(receipt)}
-                          className={`w-full p-4 text-left hover:bg-slate-50 transition-colors ${
-                            trainingReceipt?.id === receipt.id ? 'bg-indigo-50' : ''
-                          }`}
-                          whileHover={{ x: 2 }}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-slate-800 truncate">
-                                {receipt.vendor_name || 'Unknown Vendor'}
-                              </p>
-                              <p className="text-xs text-slate-400 truncate">
-                                {receipt.file_name}
-                              </p>
-                            </div>
-                            <span className={`text-xs ${
-                              (receipt.confidence_score || 0) >= 80 ? 'text-green-600' :
-                              (receipt.confidence_score || 0) >= 50 ? 'text-amber-600' :
-                              'text-red-600'
-                            }`}>
-                              {receipt.confidence_score || 0}%
-                            </span>
-                          </div>
-                        </motion.button>
-                      ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Training Panel with Receipt Image */}
-              <div className="flex-1">
-                <div className="h-[calc(100vh-250px)]">
-                  <AITrainingPanel
-                    receipt={trainingReceipt}
-                    onFieldCorrection={handleFieldCorrection}
-                    onSendFeedback={handleSendTrainingFeedback}
-                  />
-                </div>
-              </div>
-
-              {/* Chat Panel */}
-              <div className="w-1/3">
-                <div className="h-[calc(100vh-250px)]">
-                  <AIFeedbackChat
-                    receiptContext={trainingReceipt}
-                    onFeedbackSaved={() => queryClient.invalidateQueries({ queryKey: ['feedback'] })}
-                    externalMessages={chatMessages}
-                  />
-                </div>
-              </div>
+            <div className="h-[calc(100vh-300px)]">
+              <AIBulkTraining />
             </div>
 
             {/* Learned Rules Section Below */}
@@ -501,7 +417,7 @@ export default function Admin() {
                     <div className="col-span-full text-center py-12 text-slate-500">
                       <Sparkles className="w-8 h-8 mx-auto mb-3 text-slate-300" />
                       <p>No rules learned yet</p>
-                      <p className="text-sm">Start training the AI by marking fields as correct or incorrect</p>
+                      <p className="text-sm">Upload a file and review extractions to train the AI</p>
                     </div>
                   )}
                 </div>
