@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   FileText, Upload, Coins, Percent, Building2, 
   TrendingUp, AlertCircle, Download, Filter, 
-  Grid, List, Search, Calendar, Trash2
+  Grid, List, Search, Calendar, Trash2, Folder
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import ReceiptTable from '../components/receipts/ReceiptTable';
 import ReceiptDetailModal from '../components/receipts/ReceiptDetailModal';
 import FolderTree from '../components/folders/FolderTree';
 import FolderManager from '../components/folders/FolderManager';
+import MoveToFolderDialog from '../components/folders/MoveToFolderDialog';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
 
 export default function Dashboard() {
@@ -32,6 +33,7 @@ export default function Dashboard() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [currentFolderId, setCurrentFolderId] = useState(null);
   const [expandedFolders, setExpandedFolders] = useState([]);
+  const [showMoveDialog, setShowMoveDialog] = useState(false);
 
   const { data: receipts = [], isLoading } = useQuery({
     queryKey: ['receipts'],
@@ -75,6 +77,21 @@ export default function Dashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['folders'] });
+    },
+  });
+
+  const moveReceiptsMutation = useMutation({
+    mutationFn: async ({ receiptIds, folderId }) => {
+      for (const id of receiptIds) {
+        await base44.entities.Receipt.update(id, { 
+          folder_id: folderId || undefined 
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['receipts'] });
+      setSelectedIds([]);
+      setShowMoveDialog(false);
     },
   });
 
@@ -214,6 +231,13 @@ export default function Dashboard() {
     await deleteReceiptsMutation.mutateAsync(allIds);
   };
 
+  const handleMoveToFolder = (folderId) => {
+    moveReceiptsMutation.mutate({ 
+      receiptIds: selectedIds, 
+      folderId 
+    });
+  };
+
   const formatCurrency = (amount) => `£${(amount || 0).toFixed(2)}`;
 
   return (
@@ -232,15 +256,25 @@ export default function Dashboard() {
           </div>
           <div className="flex gap-3">
             {selectedIds.length > 0 && (
-              <Button 
-                variant="outline" 
-                className="gap-2 text-red-600 hover:bg-red-50 border-red-200"
-                onClick={handleDeleteSelected}
-                disabled={deleteReceiptsMutation.isPending}
-              >
-                <Trash2 className="w-4 h-4" />
-                Delete ({selectedIds.length})
-              </Button>
+              <>
+                <Button 
+                  variant="outline" 
+                  className="gap-2"
+                  onClick={() => setShowMoveDialog(true)}
+                >
+                  <Folder className="w-4 h-4" />
+                  Move to Folder ({selectedIds.length})
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="gap-2 text-red-600 hover:bg-red-50 border-red-200"
+                  onClick={handleDeleteSelected}
+                  disabled={deleteReceiptsMutation.isPending}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete ({selectedIds.length})
+                </Button>
+              </>
             )}
             {receipts.length > 0 && (
               <Button 
@@ -467,6 +501,15 @@ export default function Dashboard() {
               receipt={selectedReceipt}
               isOpen={!!selectedReceipt}
               onClose={() => setSelectedReceipt(null)}
+            />
+
+            {/* Move to Folder Dialog */}
+            <MoveToFolderDialog
+              isOpen={showMoveDialog}
+              onClose={() => setShowMoveDialog(false)}
+              folders={folders}
+              onMove={handleMoveToFolder}
+              receiptCount={selectedIds.length}
             />
           </div>
         </div>
