@@ -461,14 +461,33 @@ export default function Dashboard() {
             <p className="text-slate-500 mb-6">
               {receipts.length === 0 
                 ? 'Upload your first receipt to get started'
+                : currentFolderId !== null
+                ? 'This folder is empty. Move receipts here or upload new ones.'
                 : 'Try adjusting your filters'}
             </p>
-            <Link to={createPageUrl('Upload')}>
-              <Button className="bg-indigo-600 hover:bg-indigo-700 gap-2">
-                <Upload className="w-4 h-4" />
-                Upload Receipts
-              </Button>
-            </Link>
+            <div className="flex gap-3 justify-center">
+              {currentFolderId !== null && receipts.length > 0 && (
+                <Button 
+                  variant="outline"
+                  onClick={() => {
+                    // Select all receipts from other folders/root
+                    const otherReceipts = receipts.filter(r => r.folder_id !== currentFolderId);
+                    setSelectedIds(otherReceipts.map(r => r.id));
+                    setShowMoveDialog(true);
+                  }}
+                  className="gap-2"
+                >
+                  <Folder className="w-4 h-4" />
+                  Add Existing Receipts
+                </Button>
+              )}
+              <Link to={createPageUrl('Upload')}>
+                <Button className="bg-indigo-600 hover:bg-indigo-700 gap-2">
+                  <Upload className="w-4 h-4" />
+                  Upload Receipts
+                </Button>
+              </Link>
+            </div>
           </motion.div>
         ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
