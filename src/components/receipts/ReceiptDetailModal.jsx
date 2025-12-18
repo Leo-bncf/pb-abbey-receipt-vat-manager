@@ -68,8 +68,8 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
           {/* Content */}
           <div className="flex flex-col lg:flex-row max-h-[calc(90vh-80px)] overflow-hidden">
             {/* Left: Image Preview */}
-            <div className="lg:w-1/2 p-6 bg-slate-50 border-b lg:border-b-0 lg:border-r border-slate-200">
-              <div className="aspect-[3/4] rounded-xl bg-white border border-slate-200 overflow-hidden">
+            <div className="lg:w-1/2 p-6 bg-slate-900 border-b lg:border-b-0 lg:border-r border-slate-700">
+              <div className="aspect-[3/4] rounded-xl bg-slate-800 border border-slate-700 overflow-auto">
                 {receipt.file_url ? (
                   receipt.file_type === 'pdf' ? (
                     <iframe 
@@ -81,11 +81,13 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
                     <img 
                       src={receipt.file_url} 
                       alt="Receipt" 
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-contain cursor-pointer hover:object-scale-down transition-all"
+                      onClick={() => window.open(receipt.file_url, '_blank')}
+                      style={{ imageRendering: 'crisp-edges' }}
                     />
                   )
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-slate-400">
+                  <div className="w-full h-full flex items-center justify-center text-slate-500">
                     <FileText className="w-16 h-16" />
                   </div>
                 )}
@@ -94,7 +96,7 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="mt-4 w-full"
+                  className="mt-4 w-full bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700"
                   onClick={() => window.open(receipt.file_url, '_blank')}
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
