@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { 
   Save, X, Check, AlertTriangle, FileText, 
   Calendar, Building2, MapPin, Coins, Percent,
-  MessageSquare, Loader2
+  MessageSquare, Loader2, Info, ExternalLink
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,6 +79,20 @@ export default function ReceiptReviewPanel({
 
   if (!receipt) return null;
 
+  // Check if this is from a multi-receipt file
+  const isMultiReceipt = receipt.extraction_notes?.includes('receipts from same image') || 
+                         receipt.file_name?.includes('[');
+  const locationMatch = receipt.extraction_notes?.match(/\[Location: ([^\]]+)\]/);
+  const location = locationMatch ? locationMatch[1] : null;
+  
+  // Extract page number if mentioned
+  const pageMatch = receipt.extraction_notes?.match(/page (\d+)/i) || location?.match(/page (\d+)/i);
+  const pageNumber = pageMatch ? parseInt(pageMatch[1]) : null;
+
+  const displayUrl = receipt.file_type === 'pdf' && pageNumber 
+    ? `${receipt.file_url}#page=${pageNumber}`
+    : receipt.file_url;
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -106,12 +120,28 @@ export default function ReceiptReviewPanel({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {/* Multi-receipt Alert */}
+        {isMultiReceipt && location && (
+          <div className="p-4 bg-amber-500/20 border border-amber-500/30 rounded-lg flex items-start gap-3">
+            <Info className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm text-amber-900 font-semibold mb-1">Multi-receipt file</p>
+              <p className="text-sm text-amber-800 mb-1">
+                This receipt is located at: <span className="font-semibold">{location}</span>
+              </p>
+              <p className="text-xs text-amber-700">
+                Look for vendor "{receipt.vendor_name}" with total {receipt.total_amount} {receipt.currency}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Receipt Preview */}
         <div className="aspect-video rounded-xl bg-slate-50 border border-slate-200 overflow-hidden">
           {receipt.file_url ? (
             receipt.file_type === 'pdf' ? (
               <iframe 
-                src={receipt.file_url} 
+                src={displayUrl} 
                 className="w-full h-full"
                 title="Receipt PDF"
               />
@@ -120,6 +150,7 @@ export default function ReceiptReviewPanel({
                 src={receipt.file_url} 
                 alt="Receipt" 
                 className="w-full h-full object-contain"
+                style={{ imageRendering: 'crisp-edges' }}
               />
             )
           ) : (
@@ -128,6 +159,15 @@ export default function ReceiptReviewPanel({
             </div>
           )}
         </div>
+
+        {/* Open Full Size Button */}
+        <button
+          onClick={() => window.open(displayUrl, '_blank')}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+        >
+          <ExternalLink className="w-4 h-4" />
+          {pageNumber ? `Open Page ${pageNumber}` : 'Open Full Size'}
+        </button>
 
         {/* Confidence Warning */}
         {receipt.confidence_score < 70 && (
