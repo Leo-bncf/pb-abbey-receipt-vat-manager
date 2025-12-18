@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Loader2, CheckCircle, XCircle, Image as ImageIcon, ThumbsUp, ThumbsDown, Sparkles } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, XCircle, Image as ImageIcon, ThumbsUp, ThumbsDown, Sparkles, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 
 export default function AIBulkTraining() {
@@ -12,6 +14,10 @@ export default function AIBulkTraining() {
   const [extractedReceipts, setExtractedReceipts] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [feedback, setFeedback] = useState({});
+  const [fieldCorrections, setFieldCorrections] = useState({});
+  const [incorrectFields, setIncorrectFields] = useState({});
+  const [originalValues, setOriginalValues] = useState({});
+  const [customRule, setCustomRule] = useState('');
 
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files?.[0];
@@ -20,6 +26,10 @@ export default function AIBulkTraining() {
       setExtractedReceipts([]);
       setCurrentIndex(0);
       setFeedback({});
+      setFieldCorrections({});
+      setIncorrectFields({});
+      setOriginalValues({});
+      setCustomRule('');
     }
   };
 
@@ -121,12 +131,20 @@ Return an array with one object per receipt found. Apply learned patterns. Doubl
         }
       });
 
-      setExtractedReceipts(result.receipts.map((r, i) => ({
+      const receipts = result.receipts.map((r, i) => ({
         ...r,
         id: `temp_${i}`,
         file_url,
         file_name: file.name
-      })));
+      }));
+      setExtractedReceipts(receipts);
+      
+      // Store original values
+      const originals = {};
+      receipts.forEach((r, i) => {
+        originals[i] = { ...r };
+      });
+      setOriginalValues(originals);
     } catch (error) {
       console.error('Failed to process file:', error);
       alert('Failed to process file. Please try again.');
@@ -141,6 +159,30 @@ Return an array with one object per receipt found. Apply learned patterns. Doubl
       updated[currentIndex] = { ...updated[currentIndex], [field]: value };
       return updated;
     });
+    
+    // Track that this field was corrected
+    if (originalValues[currentIndex] && originalValues[currentIndex][field] !== value) {
+      setFieldCorrections(prev => ({
+        ...prev,
+        [currentIndex]: {
+          ...(prev[currentIndex] || {}),
+          [field]: {
+            original: originalValues[currentIndex][field],
+            corrected: value
+          }
+        }
+      }));
+    }
+  };
+
+  const toggleIncorrectField = (field) => {
+    setIncorrectFields(prev => ({
+      ...prev,
+      [currentIndex]: {
+        ...(prev[currentIndex] || {}),
+        [field]: !(prev[currentIndex]?.[field])
+      }
+    }));
   };
 
   const markAsCorrect = () => {
@@ -152,73 +194,127 @@ Return an array with one object per receipt found. Apply learned patterns. Doubl
 
   const markAsIncorrect = () => {
     setFeedback(prev => ({ ...prev, [currentIndex]: 'incorrect' }));
+    // Initialize incorrect fields for this receipt if not already
+    if (!incorrectFields[currentIndex]) {
+      setIncorrectFields(prev => ({ ...prev, [currentIndex]: {} }));
+    }
+  };
+
+  const saveCurrentCorrections = () => {
+    setFeedback(prev => ({ ...prev, [currentIndex]: 'incorrect' }));
+    if (currentIndex < extractedReceipts.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+    }
   };
 
   const saveTraining = async () => {
     const user = await base44.auth.me();
     
-    // Analyze corrections to create specific learning rules
-    const learnings = [];
-    const specificRules = [];
+    // Save field-level corrections to ReceiptCorrection entity
+    for (const [index, corrections] of Object.entries(fieldCorrections)) {
+      const receipt = extractedReceipts[index];
+      for (const [fieldName, correction] of Object.entries(corrections)) {
+        await base44.entities.ReceiptCorrection.create({
+          receipt_id: receipt.id,
+          field_name: fieldName,
+          original_value: String(correction.original || ''),
+          corrected_value: String(correction.corrected || ''),
+          correction_reason: `Bulk training correction for ${receipt.vendor_name}`,
+          corrected_by: user.email
+        });
+      }
+    }
 
+    // Build AI feedback entries with detailed rules
+    const feedbackEntries = [];
+    
     extractedReceipts.forEach((receipt, index) => {
       if (feedback[index] === 'incorrect') {
-        // User made corrections - identify specific patterns
-        learnings.push({
-          receipt_data: receipt,
+        const corrections = fieldCorrections[index] || {};
+        const incorrects = incorrectFields[index] || {};
+        
+        // Generate specific rules from field corrections
+        const rules = [];
+        Object.entries(corrections).forEach(([field, correction]) => {
+          if (incorrects[field]) {
+            if (field === 'vendor_name') {
+              rules.push(`Vendor name should be "${correction.corrected}" not "${correction.original}"`);
+            } else if (field === 'vat_amount' || field === 'total_amount') {
+              rules.push(`For ${receipt.vendor_name}: ${field.replace('_', ' ')} should be ${correction.corrected} not ${correction.original}`);
+            } else if (field === 'country') {
+              rules.push(`${receipt.vendor_name} is located in ${correction.corrected}`);
+            } else {
+              rules.push(`${field.replace('_', ' ')}: "${correction.original}" → "${correction.corrected}"`);
+            }
+          }
+        });
+
+        const correctedFields = Object.keys(corrections).filter(f => incorrects[f]).join(', ');
+        
+        feedbackEntries.push({
           feedback_type: 'correction',
-          user_message: `Corrected extraction for ${receipt.vendor_name}: Total=${receipt.total_amount} ${receipt.currency}, VAT=${receipt.vat_amount}`,
-          corrected_by: user.email
+          user_message: `Corrected ${correctedFields || 'fields'} for ${receipt.vendor_name}`,
+          rule_learned: rules.length > 0 ? rules.join('; ') : `Review extractions for ${receipt.vendor_name}`,
+          is_applied: true,
+          submitted_by: user.email
         });
         
-        // Create specific learning rules
-        specificRules.push(
-          `For vendor "${receipt.vendor_name}": total is ${receipt.total_amount} ${receipt.currency}, VAT is ${receipt.vat_amount} (${receipt.vat_rate}%)`
-        );
-        
-        if (receipt.country) {
-          specificRules.push(
-            `Vendor "${receipt.vendor_name}" is located in ${receipt.country}`
-          );
-        }
       } else if (feedback[index] === 'correct') {
-        learnings.push({
-          receipt_data: receipt,
+        feedbackEntries.push({
           feedback_type: 'confirmation',
           user_message: `Confirmed correct: ${receipt.vendor_name}, ${receipt.total_amount} ${receipt.currency}`,
-          corrected_by: user.email
+          rule_learned: `Correctly identified: "${receipt.vendor_name}" with total ${receipt.total_amount} ${receipt.currency}, VAT ${receipt.vat_amount}`,
+          is_applied: true,
+          submitted_by: user.email
         });
-        
-        // Reinforce correct patterns
-        specificRules.push(
-          `Correctly identified: "${receipt.vendor_name}" with total ${receipt.total_amount} ${receipt.currency}`
-        );
       }
     });
 
-    // Save detailed feedback to AI learning system
-    for (let i = 0; i < learnings.length; i++) {
-      const learning = learnings[i];
-      await base44.entities.AIFeedback.create({
-        feedback_type: learning.feedback_type,
-        user_message: learning.user_message,
-        rule_learned: specificRules[i],
+    // Add custom rule if provided
+    if (customRule.trim()) {
+      feedbackEntries.push({
+        feedback_type: 'rule',
+        user_message: `Custom rule from bulk training: ${customRule}`,
+        rule_learned: customRule.trim(),
         is_applied: true,
         submitted_by: user.email
       });
     }
 
-    alert(`Training saved! ${learnings.length} patterns will improve future extractions.`);
+    // Save all feedback
+    for (const entry of feedbackEntries) {
+      await base44.entities.AIFeedback.create(entry);
+    }
+
+    const totalCorrections = Object.keys(fieldCorrections).length;
+    const totalFeedback = Object.keys(feedback).length;
+    alert(`Training saved! ${totalCorrections} field corrections and ${totalFeedback} receipts reviewed. AI will learn from this data.`);
     
     // Reset
     setFile(null);
     setExtractedReceipts([]);
     setCurrentIndex(0);
     setFeedback({});
+    setFieldCorrections({});
+    setIncorrectFields({});
+    setOriginalValues({});
+    setCustomRule('');
   };
 
   const currentReceipt = extractedReceipts[currentIndex];
   const currentFeedback = feedback[currentIndex];
+  const currentIncorrectFields = incorrectFields[currentIndex] || {};
+  const currentCorrections = fieldCorrections[currentIndex] || {};
+  
+  const receiptFields = [
+    { key: 'vendor_name', label: 'Vendor Name', type: 'text' },
+    { key: 'receipt_date', label: 'Date', type: 'date' },
+    { key: 'country', label: 'Country', type: 'text' },
+    { key: 'currency', label: 'Currency', type: 'text' },
+    { key: 'total_amount', label: 'Total Amount', type: 'number' },
+    { key: 'vat_amount', label: 'VAT Amount', type: 'number' },
+    { key: 'vat_rate', label: 'VAT Rate (%)', type: 'number' }
+  ];
 
   if (!file) {
     return (
@@ -342,77 +438,75 @@ Return an array with one object per receipt found. Apply learned patterns. Doubl
               </div>
             )}
 
-            {/* Extracted fields */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1">Vendor Name</label>
-                <Input
-                  value={currentReceipt.vendor_name || ''}
-                  onChange={(e) => handleFieldChange('vendor_name', e.target.value)}
-                  className={currentFeedback === 'incorrect' ? 'border-amber-400' : ''}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1">Date</label>
-                <Input
-                  type="date"
-                  value={currentReceipt.receipt_date || ''}
-                  onChange={(e) => handleFieldChange('receipt_date', e.target.value)}
-                  className={currentFeedback === 'incorrect' ? 'border-amber-400' : ''}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1">Country</label>
-                <Input
-                  value={currentReceipt.country || ''}
-                  onChange={(e) => handleFieldChange('country', e.target.value)}
-                  className={currentFeedback === 'incorrect' ? 'border-amber-400' : ''}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1">Currency</label>
-                <Input
-                  value={currentReceipt.currency || ''}
-                  onChange={(e) => handleFieldChange('currency', e.target.value)}
-                  className={currentFeedback === 'incorrect' ? 'border-amber-400' : ''}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1">Total Amount</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={currentReceipt.total_amount || ''}
-                  onChange={(e) => handleFieldChange('total_amount', parseFloat(e.target.value))}
-                  className={currentFeedback === 'incorrect' ? 'border-amber-400' : ''}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1">VAT Amount</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={currentReceipt.vat_amount || ''}
-                  onChange={(e) => handleFieldChange('vat_amount', parseFloat(e.target.value))}
-                  className={currentFeedback === 'incorrect' ? 'border-amber-400' : ''}
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="text-sm font-medium text-slate-700 block mb-1">VAT Rate (%)</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={currentReceipt.vat_rate || ''}
-                  onChange={(e) => handleFieldChange('vat_rate', parseFloat(e.target.value))}
-                  className={currentFeedback === 'incorrect' ? 'border-amber-400' : ''}
-                />
-              </div>
+            {/* Extracted fields with checkboxes */}
+            <div className="space-y-3">
+              {receiptFields.map(field => (
+                <div key={field.key} className={`p-3 rounded-lg border transition-all ${
+                  currentIncorrectFields[field.key] 
+                    ? 'bg-amber-50 border-amber-300' 
+                    : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    {currentFeedback === 'incorrect' && (
+                      <Checkbox
+                        checked={currentIncorrectFields[field.key] || false}
+                        onCheckedChange={() => toggleIncorrectField(field.key)}
+                        className="mt-1"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-slate-700 block mb-1">
+                        {field.label}
+                        {currentIncorrectFields[field.key] && (
+                          <span className="ml-2 text-xs text-amber-600">(marked incorrect)</span>
+                        )}
+                      </label>
+                      <Input
+                        type={field.type}
+                        step={field.type === 'number' ? '0.01' : undefined}
+                        value={currentReceipt[field.key] || ''}
+                        onChange={(e) => handleFieldChange(
+                          field.key, 
+                          field.type === 'number' ? parseFloat(e.target.value) : e.target.value
+                        )}
+                        className={currentIncorrectFields[field.key] ? 'border-amber-400' : ''}
+                        disabled={currentFeedback !== 'incorrect'}
+                      />
+                      {currentCorrections[field.key] && (
+                        <p className="text-xs text-slate-500 mt-1">
+                          Original: {currentCorrections[field.key].original}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
+            {/* Custom learning rule */}
+            {currentFeedback === 'incorrect' && (
+              <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                <label className="text-sm font-medium text-indigo-800 block mb-2 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Add Custom Learning Rule (Optional)
+                </label>
+                <Textarea
+                  placeholder="E.g., 'For ASDA receipts, always check for mixed VAT rates' or 'Vendor X always has 20% VAT'"
+                  value={customRule}
+                  onChange={(e) => setCustomRule(e.target.value)}
+                  className="bg-white"
+                  rows={3}
+                />
+                <p className="text-xs text-indigo-600 mt-2">
+                  This rule will be added to the AI's learning database and applied to future extractions.
+                </p>
+              </div>
+            )}
+
             {/* Feedback buttons */}
-            <div className="flex gap-3 pt-4">
+            <div className="space-y-3 pt-4">
               {!currentFeedback && (
-                <>
+                <div className="flex gap-3">
                   <Button
                     onClick={markAsCorrect}
                     className="flex-1 bg-green-600 hover:bg-green-700 gap-2"
@@ -426,24 +520,54 @@ Return an array with one object per receipt found. Apply learned patterns. Doubl
                     className="flex-1 border-amber-400 text-amber-700 hover:bg-amber-50 gap-2"
                   >
                     <ThumbsDown className="w-4 h-4" />
-                    Fix Above
+                    Mark Incorrect Fields
                   </Button>
+                </div>
+              )}
+              
+              {currentFeedback === 'incorrect' && (
+                <>
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-2">
+                    <AlertCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-blue-800">
+                      <p className="font-medium mb-1">Check incorrect fields, correct the values, and optionally add a learning rule.</p>
+                      <p className="text-blue-700">Selected fields: {Object.values(currentIncorrectFields).filter(Boolean).length}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={saveCurrentCorrections}
+                      className="flex-1 bg-green-600 hover:bg-green-700 gap-2"
+                      disabled={Object.values(currentIncorrectFields).filter(Boolean).length === 0}
+                    >
+                      <CheckCircle className="w-4 h-4" />
+                      Save & Continue
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setFeedback(prev => {
+                          const updated = { ...prev };
+                          delete updated[currentIndex];
+                          return updated;
+                        });
+                        setIncorrectFields(prev => {
+                          const updated = { ...prev };
+                          delete updated[currentIndex];
+                          return updated;
+                        });
+                      }}
+                      variant="outline"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </>
               )}
-              {currentFeedback === 'incorrect' && (
-                <Button
-                  onClick={markAsCorrect}
-                  className="flex-1 bg-green-600 hover:bg-green-700 gap-2"
-                >
+              
+              {currentFeedback === 'correct' && (
+                <p className="text-sm text-green-600 flex items-center gap-2">
                   <CheckCircle className="w-4 h-4" />
-                  Corrections Done
-                </Button>
-              )}
-              {currentFeedback && (
-                <p className="text-sm text-slate-500 flex items-center">
-                  {currentFeedback === 'correct' ? 
-                    '✓ Marked as correct' : 
-                    '! Make corrections above then mark done'}
+                  Marked as correct
                 </p>
               )}
             </div>
