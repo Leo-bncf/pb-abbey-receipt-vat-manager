@@ -158,6 +158,13 @@ export default function Dashboard() {
     await deleteReceiptsMutation.mutateAsync(selectedIds);
   };
 
+  const handleDeleteAll = async () => {
+    if (receipts.length === 0) return;
+    if (!confirm(`Delete ALL ${receipts.length} receipts? This action cannot be undone.`)) return;
+    const allIds = receipts.map(r => r.id);
+    await deleteReceiptsMutation.mutateAsync(allIds);
+  };
+
   const formatCurrency = (amount) => `£${(amount || 0).toFixed(2)}`;
 
   return (
@@ -184,6 +191,17 @@ export default function Dashboard() {
               >
                 <Trash2 className="w-4 h-4" />
                 Delete ({selectedIds.length})
+              </Button>
+            )}
+            {receipts.length > 0 && (
+              <Button 
+                variant="outline" 
+                className="gap-2 text-red-600 hover:bg-red-50 border-red-200"
+                onClick={handleDeleteAll}
+                disabled={deleteReceiptsMutation.isPending}
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete All
               </Button>
             )}
             <Link to={createPageUrl('Reports')}>
