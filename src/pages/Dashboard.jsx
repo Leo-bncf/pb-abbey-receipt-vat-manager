@@ -17,6 +17,8 @@ import StatsCard from '../components/stats/StatsCard';
 import ReceiptCard from '../components/receipts/ReceiptCard';
 import ReceiptTable from '../components/receipts/ReceiptTable';
 import ReceiptDetailModal from '../components/receipts/ReceiptDetailModal';
+import FolderTree from '../components/folders/FolderTree';
+import FolderManager from '../components/folders/FolderManager';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
 
 export default function Dashboard() {
@@ -28,10 +30,17 @@ export default function Dashboard() {
   const [sortField, setSortField] = useState('created_date');
   const [sortDirection, setSortDirection] = useState('desc');
   const [selectedIds, setSelectedIds] = useState([]);
+  const [currentFolderId, setCurrentFolderId] = useState(null);
+  const [expandedFolders, setExpandedFolders] = useState([]);
 
   const { data: receipts = [], isLoading } = useQuery({
     queryKey: ['receipts'],
     queryFn: () => base44.entities.Receipt.list('-created_date'),
+  });
+
+  const { data: folders = [] } = useQuery({
+    queryKey: ['folders'],
+    queryFn: () => base44.entities.Folder.list('name'),
   });
 
   const queryClient = useQueryClient();
@@ -84,6 +93,11 @@ export default function Dashboard() {
   // Filter receipts
   const filteredReceipts = useMemo(() => {
     let filtered = [...receipts];
+
+    // Folder filter
+    if (currentFolderId !== null) {
+      filtered = filtered.filter(r => r.folder_id === currentFolderId);
+    }
 
     // Search filter
     if (searchQuery) {
@@ -141,7 +155,21 @@ export default function Dashboard() {
     });
 
     return filtered;
-  }, [receipts, searchQuery, statusFilter, dateFilter, sortField, sortDirection]);
+  }, [receipts, currentFolderId, searchQuery, statusFilter, dateFilter, sortField, sortDirection]);
+
+  const getCurrentFolderName = () => {
+    if (currentFolderId === null) return 'All Receipts';
+    const folder = folders.find(f => f.id === currentFolderId);
+    return folder ? folder.name : 'All Receipts';
+  };
+
+  const toggleFolder = (folderId) => {
+    setExpandedFolders(prev => 
+      prev.includes(folderId) 
+        ? prev.filter(id => id !== folderId)
+        : [...prev, folderId]
+    );
+  };
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -178,7 +206,7 @@ export default function Dashboard() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-800">Receipt Dashboard</h1>
-              <p className="text-slate-500">Manage and track your business receipts</p>
+              <p className="text-slate-500">{getCurrentFolderName()}</p>
             </div>
           </div>
           <div className="flex gap-3">
@@ -253,13 +281,53 @@ export default function Dashboard() {
           />
         </div>
 
-        {/* Filters */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl border border-slate-200 p-4 mb-6"
-        >
+        {/* Layout with Sidebar */}
+        <div className="flex gap-6 mb-6">
+          {/* Folder Sidebar */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="w-64 bg-white rounded-xl border border-slate-200 p-4 h-fit"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-slate-800 text-sm">Folders</h3>
+              <FolderManager folders={folders} currentFolderId={currentFolderId} />
+            </div>
+
+            <button
+              onClick={() => setCurrentFolderId(null)}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg mb-2 transition-colors ${
+                currentFolderId === null ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span className="text-sm font-medium">All Receipts</span>
+              <Badge variant="outline" className="ml-auto text-xs">
+                {receipts.length}
+              </Badge>
+            </button>
+
+            <div className="border-t border-slate-200 pt-3 mt-3">
+              <FolderTree
+                folders={folders}
+                receipts={receipts}
+                currentFolderId={currentFolderId}
+                onSelectFolder={setCurrentFolderId}
+                expandedFolders={expandedFolders}
+                onToggleFolder={toggleFolder}
+              />
+            </div>
+          </motion.div>
+
+          {/* Main Content */}
+          <div className="flex-1">
+            {/* Filters */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white rounded-xl border border-slate-200 p-4 mb-6"
+            >
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -377,7 +445,8 @@ export default function Dashboard() {
           isOpen={!!selectedReceipt}
           onClose={() => setSelectedReceipt(null)}
         />
-      </div>
-    </div>
-  );
-}
+        </div>
+        </div>
+        </div>
+        );
+        }

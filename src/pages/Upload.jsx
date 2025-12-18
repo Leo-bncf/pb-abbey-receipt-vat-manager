@@ -6,6 +6,9 @@ import { FileText, ArrowRight, CheckCircle, Loader2, AlertCircle } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { base44 } from '@/api/base44Client';
+import { useQuery } from '@tanstack/react-query';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Folder } from 'lucide-react';
 import UploadZone from '../components/upload/UploadZone';
 import { createPageUrl } from '@/utils';
 
@@ -15,7 +18,13 @@ export default function Upload() {
   const [processedFiles, setProcessedFiles] = useState([]);
   const [errors, setErrors] = useState([]);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [selectedFolderId, setSelectedFolderId] = useState(null);
   const navigate = useNavigate();
+
+  const { data: folders = [] } = useQuery({
+    queryKey: ['folders'],
+    queryFn: () => base44.entities.Folder.list('name'),
+  });
 
   const getFileType = (file) => {
     const ext = file.name.split('.').pop().toLowerCase();
@@ -343,6 +352,7 @@ export default function Upload() {
         file_url: fileUrl,
         file_name: fileName + receiptSuffix,
         file_type: fileType,
+        folder_id: selectedFolderId || undefined,
         status: 'extracted',
         ocr_text: receipt.ocr_text || '',
         vendor_name: receipt.vendor_name || '',
@@ -434,10 +444,37 @@ export default function Upload() {
           <h1 className="text-3xl font-bold text-slate-800 mb-3">
             Upload Receipts
           </h1>
-          <p className="text-slate-500 max-w-md mx-auto">
+          <p className="text-slate-500 max-w-md mx-auto mb-6">
             Upload your receipts and our AI will automatically extract vendor details, amounts, and calculate VAT.
           </p>
-        </motion.div>
+
+          {/* Folder Selection */}
+          {folders.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-xs mx-auto"
+            >
+              <label className="text-sm font-medium text-slate-700 block mb-2 flex items-center gap-2">
+                <Folder className="w-4 h-4" />
+                Save to Folder (optional)
+              </label>
+              <Select value={selectedFolderId || ''} onValueChange={(v) => setSelectedFolderId(v || null)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="No folder (root)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={null}>No folder (root)</SelectItem>
+                  {folders.map(folder => (
+                    <SelectItem key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </motion.div>
+          )}
+          </motion.div>
 
         {/* Upload Zone */}
         {!isProcessing && processedFiles.length === 0 && (
