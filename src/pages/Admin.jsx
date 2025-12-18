@@ -14,14 +14,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { base44 } from '@/api/base44Client';
 import ReceiptReviewPanel from '../components/admin/ReceiptReviewPanel';
 import AIFeedbackChat from '../components/admin/AIFeedbackChat';
+import AITrainingPanel from '../components/admin/AITrainingPanel';
 import StatsCard from '../components/stats/StatsCard';
 import { format } from 'date-fns';
 
 export default function Admin() {
   const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [trainingReceipt, setTrainingReceipt] = useState(null);
   const [reviewFilter, setReviewFilter] = useState('needs_review');
+  const [trainingSearchQuery, setTrainingSearchQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('review');
+  const [chatMessages, setChatMessages] = useState([]);
   const queryClient = useQueryClient();
 
   const { data: receipts = [], isLoading } = useQuery({
@@ -56,6 +60,31 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ['corrections'] });
     },
   });
+
+  const handleFieldCorrection = async (receiptId, fieldName, originalValue, correctedValue) => {
+    const user = await base44.auth.me();
+    
+    // Save correction
+    await createCorrectionMutation.mutateAsync({
+      receipt_id: receiptId,
+      field_name: fieldName,
+      original_value: String(originalValue || ''),
+      corrected_value: String(correctedValue || ''),
+      corrected_by: user.email
+    });
+
+    // Update receipt
+    const updates = { [fieldName]: correctedValue };
+    await updateReceiptMutation.mutateAsync({
+      id: receiptId,
+      data: updates
+    });
+  };
+
+  const handleSendTrainingFeedback = (message) => {
+    // Add message to chat so it gets sent through the AI chat component
+    setChatMessages(prev => [...prev, { role: 'user', content: message }]);
+  };
 
   // Stats
   const stats = useMemo(() => {
@@ -340,42 +369,121 @@ export default function Admin() {
 
           {/* AI Training Tab */}
           <TabsContent value="training">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Chat Panel */}
-              <div className="h-[600px]">
-                <AIFeedbackChat
-                  receiptContext={selectedReceipt}
-                  onFeedbackSaved={() => queryClient.invalidateQueries({ queryKey: ['feedback'] })}
-                />
+            <div className="flex gap-6">
+              {/* Receipt List */}
+              <div className="w-1/4 space-y-4">
+                <div className="bg-white rounded-xl border border-slate-200 p-4">
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Input
+                      placeholder="Search..."
+                      value={trainingSearchQuery}
+                      onChange={(e) => setTrainingSearchQuery(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-200">
+                    <p className="text-sm text-slate-600">
+                      {receipts.filter(r => 
+                        !trainingSearchQuery || 
+                        r.vendor_name?.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+                        r.file_name?.toLowerCase().includes(trainingSearchQuery.toLowerCase())
+                      ).length} receipts
+                    </p>
+                  </div>
+                  <div className="max-h-[calc(100vh-450px)] overflow-y-auto divide-y divide-slate-100">
+                    {receipts
+                      .filter(r => 
+                        !trainingSearchQuery || 
+                        r.vendor_name?.toLowerCase().includes(trainingSearchQuery.toLowerCase()) ||
+                        r.file_name?.toLowerCase().includes(trainingSearchQuery.toLowerCase())
+                      )
+                      .map((receipt) => (
+                        <motion.button
+                          key={receipt.id}
+                          onClick={() => setTrainingReceipt(receipt)}
+                          className={`w-full p-4 text-left hover:bg-slate-50 transition-colors ${
+                            trainingReceipt?.id === receipt.id ? 'bg-indigo-50' : ''
+                          }`}
+                          whileHover={{ x: 2 }}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-slate-800 truncate">
+                                {receipt.vendor_name || 'Unknown Vendor'}
+                              </p>
+                              <p className="text-xs text-slate-400 truncate">
+                                {receipt.file_name}
+                              </p>
+                            </div>
+                            <span className={`text-xs ${
+                              (receipt.confidence_score || 0) >= 80 ? 'text-green-600' :
+                              (receipt.confidence_score || 0) >= 50 ? 'text-amber-600' :
+                              'text-red-600'
+                            }`}>
+                              {receipt.confidence_score || 0}%
+                            </span>
+                          </div>
+                        </motion.button>
+                      ))}
+                  </div>
+                </div>
               </div>
 
-              {/* Learned Rules */}
+              {/* Training Panel with Receipt Image */}
+              <div className="flex-1">
+                <div className="h-[calc(100vh-250px)]">
+                  <AITrainingPanel
+                    receipt={trainingReceipt}
+                    onFieldCorrection={handleFieldCorrection}
+                    onSendFeedback={handleSendTrainingFeedback}
+                  />
+                </div>
+              </div>
+
+              {/* Chat Panel */}
+              <div className="w-1/3">
+                <div className="h-[calc(100vh-250px)]">
+                  <AIFeedbackChat
+                    receiptContext={trainingReceipt}
+                    onFeedbackSaved={() => queryClient.invalidateQueries({ queryKey: ['feedback'] })}
+                    externalMessages={chatMessages}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Learned Rules Section Below */}
+            <div className="mt-6">
               <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-200">
                   <h3 className="font-semibold text-slate-800">Learned Rules & Patterns</h3>
-                  <p className="text-sm text-slate-500">Rules extracted from your feedback</p>
+                  <p className="text-sm text-slate-500">Rules extracted from your training feedback</p>
                 </div>
-                <div className="p-6 max-h-[520px] overflow-y-auto space-y-4">
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
                   {feedbackList.filter(f => f.rule_learned).map((feedback, index) => (
                     <motion.div
                       key={feedback.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="p-4 bg-slate-50 rounded-xl"
+                      className="p-4 bg-slate-50 rounded-xl border border-slate-200"
                     >
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center flex-shrink-0">
                           <Sparkles className="w-4 h-4 text-indigo-600" />
                         </div>
-                        <div>
+                        <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-800 mb-1">
                             {feedback.rule_learned}
                           </p>
-                          <p className="text-xs text-slate-500">
-                            Based on: "{feedback.user_message}"
+                          <p className="text-xs text-slate-500 line-clamp-2 mb-2">
+                            "{feedback.user_message}"
                           </p>
-                          <div className="flex items-center gap-2 mt-2">
+                          <div className="flex items-center gap-2">
                             <Badge variant="outline" className="text-xs">
                               {feedback.feedback_type}
                             </Badge>
@@ -390,16 +498,18 @@ export default function Admin() {
                     </motion.div>
                   ))}
                   {feedbackList.filter(f => f.rule_learned).length === 0 && (
-                    <div className="text-center py-12 text-slate-500">
+                    <div className="col-span-full text-center py-12 text-slate-500">
                       <Sparkles className="w-8 h-8 mx-auto mb-3 text-slate-300" />
                       <p>No rules learned yet</p>
-                      <p className="text-sm">Start teaching the AI using the chat</p>
+                      <p className="text-sm">Start training the AI by marking fields as correct or incorrect</p>
                     </div>
                   )}
                 </div>
               </div>
             </div>
           </TabsContent>
+
+
 
           {/* Corrections History Tab */}
           <TabsContent value="corrections">

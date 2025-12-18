@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { base44 } from '@/api/base44Client';
 
-export default function AIFeedbackChat({ receiptContext, onFeedbackSaved }) {
+export default function AIFeedbackChat({ receiptContext, onFeedbackSaved, externalMessages = [] }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -18,6 +18,16 @@ export default function AIFeedbackChat({ receiptContext, onFeedbackSaved }) {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
+  // Handle external messages (from training panel)
+  useEffect(() => {
+    if (externalMessages.length > 0) {
+      const latestMessage = externalMessages[externalMessages.length - 1];
+      if (latestMessage && !messages.some(m => m.content === latestMessage.content)) {
+        handleSendMessage(latestMessage.content);
+      }
+    }
+  }, [externalMessages]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -26,24 +36,21 @@ export default function AIFeedbackChat({ receiptContext, onFeedbackSaved }) {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
-
+  const handleSendMessage = async (messageContent) => {
     const userMessage = {
       role: 'user',
-      content: input,
+      content: messageContent,
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
-    setInput('');
     setIsLoading(true);
 
     // Build context for the AI
     let contextPrompt = `You are an AI assistant that helps improve receipt data extraction accuracy. 
     The user is providing feedback to help you learn patterns and rules.
     
-    Current feedback: "${input}"
+    Current feedback: "${messageContent}"
     `;
 
     if (receiptContext) {
@@ -91,13 +98,20 @@ export default function AIFeedbackChat({ receiptContext, onFeedbackSaved }) {
       await base44.entities.AIFeedback.create({
         receipt_id: receiptContext?.id || null,
         feedback_type: response.feedback_type || 'general',
-        user_message: input,
+        user_message: messageContent,
         ai_response: response.response,
         rule_learned: response.rule_learned,
         is_applied: false
       });
       onFeedbackSaved();
     }
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || isLoading) return;
+    const messageToSend = input;
+    setInput('');
+    await handleSendMessage(messageToSend);
   };
 
   const quickPrompts = [
