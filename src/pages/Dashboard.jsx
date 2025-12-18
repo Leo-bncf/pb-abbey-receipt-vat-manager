@@ -439,14 +439,15 @@ export default function Dashboard() {
           />
         )}
 
-        {/* Detail Modal */}
-        <ReceiptDetailModal
-          receipt={selectedReceipt}
-          isOpen={!!selectedReceipt}
-          onClose={() => setSelectedReceipt(null)}
-        />
+            {/* Detail Modal */}
+            <ReceiptDetailModal
+              receipt={selectedReceipt}
+              isOpen={!!selectedReceipt}
+              onClose={() => setSelectedReceipt(null)}
+            />
+          </div>
         </div>
-        </div>
-        </div>
-        );
-        }
+      </div>
+    </div>
+  );
+}
