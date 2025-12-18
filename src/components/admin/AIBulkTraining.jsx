@@ -31,31 +31,63 @@ export default function AIBulkTraining() {
       // Upload file
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
 
-      // Extract receipts using AI
+      // Extract receipts using AI with learned patterns
+      const feedbackData = await base44.entities.AIFeedback.list('-created_date', 50);
+      const correctionsData = await base44.entities.ReceiptCorrection.list('-created_date', 100);
+      
+      // Build learning context
+      let learningContext = '';
+      if (feedbackData.length > 0 || correctionsData.length > 0) {
+        learningContext = '\n\nLEARNED PATTERNS (apply these):\n';
+        feedbackData.forEach(f => {
+          if (f.rule_learned) learningContext += `✓ ${f.rule_learned}\n`;
+        });
+        if (correctionsData.length > 0) {
+          learningContext += '\nCOMMON CORRECTIONS:\n';
+          correctionsData.slice(0, 10).forEach(c => {
+            learningContext += `• ${c.field_name}: "${c.original_value}" → "${c.corrected_value}"\n`;
+          });
+        }
+      }
+
       const extractionPrompt = `CRITICAL: This image/PDF contains MULTIPLE separate receipts. Extract data from ALL receipts visible.
+${learningContext}
 
 EXTRACTION TASK:
 Read this ${file.type === 'application/pdf' ? 'PDF document' : 'image'} with MAXIMUM ACCURACY and extract these fields for EACH receipt:
 
 REQUIRED FIELDS:
-- vendor_name: Exact business name as shown
+- vendor_name: Exact business name as shown (check spelling character-by-character)
 - receipt_date: Date in YYYY-MM-DD format
-- country: Country of purchase
+- country: Country of purchase (infer from address, VAT format, language, currency)
 - currency: Currency code (GBP, EUR, USD, etc.)
 - total_amount: Final total paid (number only)
-- vat_amount: VAT/tax amount if shown (number only, 0 if not shown)
-- vat_rate: VAT rate percentage if shown (e.g., 20 for 20%)
+- vat_amount: VAT/tax amount (calculate if not shown, based on rules below)
+- vat_rate: VAT rate percentage (determine from country and item type)
 - receipt_location: Where in image/PDF this receipt is located (e.g., "page 1 top-left", "page 2 center")
 
-MULTI-RECEIPT DETECTION:
-Look for multiple:
-- Store names/logos
-- Dates
-- Total amounts
-- Receipt numbers
-- Different positions on page
+UK VAT RULES (CRITICAL):
+STEP 1: Check for VAT number on receipt
+- NO VAT number → vat_rate=0, vat_amount=0
+- Has VAT number → Continue to STEP 2
 
-Return an array with one object per receipt found. Be precise with numbers and spelling.`;
+STEP 2: Determine category:
+- VAT-EXEMPT (medical, education, insurance, banking, rent, stamps) → vat_rate=0
+- ZERO-RATED (basic food, children's clothing, books, newspapers, water, public transport) → vat_rate=0
+- REDUCED 5% (domestic fuel/electricity, energy-saving materials) → vat_rate=5, VAT = Total × (5/105)
+- STANDARD 20% (restaurants, hot takeaways, alcohol, adult clothing, electronics, fuel, hotels, services) → vat_rate=20, VAT = Total × (20/120)
+
+OTHER COUNTRIES:
+- Germany: 19% → VAT = Total × (19/119)
+- France: 20% → VAT = Total × (20/120)
+- Netherlands: 21% → VAT = Total × (21/121)
+- Spain: 21% → VAT = Total × (21/121)
+- Italy: 22% → VAT = Total × (22/122)
+
+MULTI-RECEIPT DETECTION:
+Look for multiple store names, dates, totals, receipt numbers, or different positions.
+
+Return an array with one object per receipt found. Apply learned patterns. Double-check all extractions.`;
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: extractionPrompt,
