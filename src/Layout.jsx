@@ -129,7 +129,7 @@ export default function Layout({ children, currentPageName }) {
       </AnimatePresence>
 
       {/* Desktop Sidebar */}
-      <div className="hidden lg:flex lg:w-72 lg:flex-col lg:fixed lg:inset-y-0">
+      <div className="hidden lg:flex lg:w-56 lg:flex-col lg:fixed lg:inset-y-0">
         <div className="flex flex-col flex-grow bg-white border-r border-slate-200">
           {/* Logo */}
           <div className="px-6 py-6 border-b border-slate-100">
@@ -199,7 +199,7 @@ export default function Layout({ children, currentPageName }) {
       </div>
 
       {/* Main Content */}
-      <div className="lg:pl-72">
+      <div className="lg:pl-56">
         <main className="pt-16 lg:pt-0">
           {children}
         </main>
