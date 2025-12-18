@@ -20,7 +20,7 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
   }, [isOpen, receipt?.id]);
 
   const cropReceiptImage = async () => {
-    // Check if this is a multi-receipt image
+    // Always try to show just the relevant receipt if it's from a multi-receipt file
     const isMultiReceipt = receipt.extraction_notes?.includes('receipts from same image') || 
                            receipt.file_name?.includes('[');
     
@@ -33,35 +33,40 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
     try {
       // Extract location info from extraction notes
       const locationMatch = receipt.extraction_notes?.match(/\[Location: ([^\]]+)\]/);
-      const location = locationMatch ? locationMatch[1] : 'the receipt';
+      const location = locationMatch ? locationMatch[1] : '';
 
-      // Generate a cropped version of the image
-      const cropPrompt = `You must create a precisely cropped image showing ONLY one specific receipt from this multi-receipt page.
+      // Ask AI to extract just this receipt as an image
+      const cropPrompt = `CRITICAL TASK: Extract and return ONLY the specific receipt I'm requesting from this ${receipt.file_type === 'pdf' ? 'PDF document' : 'image'}.
 
-TARGET RECEIPT TO ISOLATE:
-- Location in image: ${location}
-- Vendor name on receipt: "${receipt.vendor_name}"
-- Date shown: ${receipt.receipt_date}
-- Total amount: ${receipt.total_amount} ${receipt.currency}
+TARGET RECEIPT IDENTIFICATION:
+${location ? `- Location: ${location}` : ''}
+- Vendor: "${receipt.vendor_name}"
+- Receipt Date: ${receipt.receipt_date}
+- Total Amount: ${receipt.total_amount} ${receipt.currency}
 
-INSTRUCTIONS:
-1. Identify the exact receipt with these details at the specified location
-2. Crop the image to show ONLY this receipt - completely remove all other receipts
-3. Include minimal padding (just 2-3% around edges)
-4. Maintain original resolution and sharpness
-5. The output must be a close-up, zoomed view of just this single receipt
-6. Do NOT include any other receipts, pages, or content from the original image
+EXTRACTION REQUIREMENTS:
+1. Locate the exact receipt matching these details
+2. Extract/crop ONLY this single receipt
+3. Remove all other receipts, pages, or content completely
+4. Maintain maximum sharpness and resolution
+5. Include small margin around receipt edges (2-3%)
+6. Output should show JUST this one receipt clearly readable
 
-The result should look like a photo of just one receipt, not a page with multiple receipts.`;
+The result must be a standalone image of this one receipt only - not a page with multiple receipts.`;
 
       const result = await base44.integrations.Core.GenerateImage({
         prompt: cropPrompt,
         existing_image_urls: [receipt.file_url]
       });
 
-      setCroppedImageUrl(result.url);
+      if (result?.url) {
+        setCroppedImageUrl(result.url);
+      } else {
+        throw new Error('No image URL returned');
+      }
     } catch (error) {
       console.error('Failed to crop receipt:', error);
+      // Fallback: show original
       setCroppedImageUrl(receipt.file_url);
     } finally {
       setIsLoadingCrop(false);
@@ -133,9 +138,18 @@ The result should look like a photo of just one receipt, not a page with multipl
                   <div className="w-full h-full flex items-center justify-center">
                     <div className="text-center">
                       <Loader2 className="w-12 h-12 text-indigo-400 animate-spin mx-auto mb-3" />
-                      <p className="text-slate-400 text-sm">Cropping receipt...</p>
+                      <p className="text-slate-400 text-sm">Extracting receipt preview...</p>
+                      <p className="text-slate-500 text-xs mt-2">This may take 10-15 seconds</p>
                     </div>
                   </div>
+                ) : croppedImageUrl ? (
+                  <img 
+                    src={croppedImageUrl} 
+                    alt="Receipt" 
+                    className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition-all"
+                    onClick={() => window.open(croppedImageUrl, '_blank')}
+                    style={{ imageRendering: 'crisp-edges' }}
+                  />
                 ) : receipt.file_url ? (
                   receipt.file_type === 'pdf' ? (
                     <iframe 
@@ -145,7 +159,7 @@ The result should look like a photo of just one receipt, not a page with multipl
                     />
                   ) : (
                     <img 
-                      src={croppedImageUrl || receipt.file_url} 
+                      src={receipt.file_url} 
                       alt="Receipt" 
                       className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition-all"
                       onClick={() => window.open(receipt.file_url, '_blank')}
