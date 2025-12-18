@@ -96,38 +96,56 @@ export default function Upload() {
     }
     
     // Use AI to extract data from the receipt
-    const extractionPrompt = `IMPORTANT: This image may contain MULTIPLE receipts. Extract data from ALL receipts visible in the image, not just one.
-    
-    Analyze this receipt image/document and extract the following information:
-    - vendor_name: The name of the vendor/store/company
-    - receipt_date: The date on the receipt (format: YYYY-MM-DD)
-    - country: The country where the purchase was made (infer from currency, language, or address)
-    - currency: The currency code (GBP, EUR, USD, etc.)
-    - total_amount: The total amount paid (number only)
-    - vat_amount: The VAT/tax amount if explicitly shown (number only, null if not shown)
-    - vat_rate: The VAT rate percentage if shown (number only)
-    - vat_explicit: true if VAT was explicitly shown on the receipt, false otherwise
-    - is_tax_free: true if this is clearly a tax-free receipt
-    - ocr_text: The full text extracted from the receipt
-    - extraction_notes: Any notes about the extraction (e.g., "VAT calculated from total", "Multiple items detected")
-    
-    Be accurate and only extract what you can clearly identify. If VAT is not shown, set vat_explicit to false and try to calculate it based on the country's standard rate.
-    
-    Common VAT rates by country:
-    - UK: 20% standard
-    - Germany: 19% standard
-    - France: 20% standard
-    - Netherlands: 21% standard
-    - Spain: 21% standard
-    - Italy: 22% standard
-    
-    If VAT is not explicit and you identify the country, calculate: VAT = Total - (Total / (1 + VAT_rate))
+    const extractionPrompt = `CRITICAL: This image may contain MULTIPLE separate receipts. You must extract data from ALL receipts visible, creating one entry per physical receipt.
+
+    EXTRACTION TASK:
+    Read this receipt image/document with MAXIMUM ACCURACY and extract these fields for EACH receipt:
+
+    REQUIRED FIELDS:
+    - vendor_name: Exact business name as shown (read carefully, check spelling)
+    - receipt_date: Date in YYYY-MM-DD format (read the actual date printed)
+    - country: Country of purchase (infer from address, currency, VAT number format, language)
+    - currency: Currency code (GBP, EUR, USD, etc.) - check the symbol on amounts
+    - total_amount: Final total paid (number only, be precise)
+
+    VAT FIELDS:
+    - vat_amount: VAT/tax amount if explicitly shown (number only)
+    - vat_rate: VAT rate percentage if shown (e.g., 20 for 20%)
+    - vat_explicit: true ONLY if VAT/Tax line is printed on receipt
+    - is_tax_free: true if receipt says "No Tax", "Tax Free", "Tax Exempt"
+
+    TEXT & NOTES:
+    - ocr_text: Complete text from receipt (preserve formatting, read everything)
+    - extraction_notes: Document any issues, calculations, or ambiguities
+    - confidence_score: Your confidence 0-100 in the accuracy of extracted data
+    - receipt_location: Where in image this receipt is located (e.g., "top-left", "center", "page 6")
+
+    VAT CALCULATION RULES:
+    If VAT not explicit but country identified, calculate:
+    - UK: 20% → VAT = Total × (20/120)
+    - Germany: 19% → VAT = Total × (19/119)
+    - France: 20% → VAT = Total × (20/120)
+    - Netherlands: 21% → VAT = Total × (21/121)
+    - Spain: 21% → VAT = Total × (21/121)
+    - Italy: 22% → VAT = Total × (22/122)
 
     ${learningContext}
 
-    CRITICAL RULE: If there are MULTIPLE receipts in this image (multiple stores, multiple totals, multiple dates), you MUST return data as an array with one entry per receipt. DO NOT combine multiple receipts into one entry. Each physical receipt must be a separate object.
+    MULTI-RECEIPT DETECTION:
+    Look for indicators of multiple receipts:
+    - Multiple store names/logos
+    - Multiple dates
+    - Multiple "TOTAL" or "AMOUNT" lines
+    - Different receipt numbers
+    - Receipts in different positions on the page
 
-    IMPORTANT: Apply the learned rules and corrections above to improve extraction accuracy. Pay special attention to patterns that were corrected before.`;
+    If you find multiple receipts, return an array with one object per receipt. Include receipt_location for each.
+
+    ACCURACY REQUIREMENTS:
+    - Read numbers precisely - double-check all amounts
+    - Verify vendor name spelling matches what's printed
+    - Ensure date is correct format
+    - Apply previous corrections from learning context above`;
 
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: extractionPrompt,

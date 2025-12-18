@@ -36,14 +36,23 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
       const location = locationMatch ? locationMatch[1] : 'the receipt';
 
       // Generate a cropped version of the image
-      const cropPrompt = `Create a cropped version of this image showing ONLY the receipt at ${location}. 
+      const cropPrompt = `You must create a precisely cropped image showing ONLY one specific receipt from this multi-receipt page.
 
-This specific receipt has:
-- Vendor: ${receipt.vendor_name}
-- Date: ${receipt.receipt_date}
+TARGET RECEIPT TO ISOLATE:
+- Location in image: ${location}
+- Vendor name on receipt: "${receipt.vendor_name}"
+- Date shown: ${receipt.receipt_date}
 - Total amount: ${receipt.total_amount} ${receipt.currency}
 
-Crop tightly around this receipt with minimal padding. Remove all other receipts from view. The output should be a clear, zoomed-in view of just this one receipt that is easy to read.`;
+INSTRUCTIONS:
+1. Identify the exact receipt with these details at the specified location
+2. Crop the image to show ONLY this receipt - completely remove all other receipts
+3. Include minimal padding (just 2-3% around edges)
+4. Maintain original resolution and sharpness
+5. The output must be a close-up, zoomed view of just this single receipt
+6. Do NOT include any other receipts, pages, or content from the original image
+
+The result should look like a photo of just one receipt, not a page with multiple receipts.`;
 
       const result = await base44.integrations.Core.GenerateImage({
         prompt: cropPrompt,
