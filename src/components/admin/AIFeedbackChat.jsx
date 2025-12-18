@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Bot, User, Loader2, Lightbulb, Sparkles } from 'lucide-react';
+import { Send, Bot, User, Loader2, Lightbulb, Sparkles, Image, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +16,10 @@ export default function AIFeedbackChat({ receiptContext, onFeedbackSaved, extern
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [attachedImages, setAttachedImages] = useState([]);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Handle external messages (from training panel)
   useEffect(() => {
@@ -36,10 +39,11 @@ export default function AIFeedbackChat({ receiptContext, onFeedbackSaved, extern
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = async (messageContent) => {
+  const handleSendMessage = async (messageContent, imageUrls = []) => {
     const userMessage = {
       role: 'user',
       content: messageContent,
+      images: imageUrls,
       timestamp: new Date()
     };
 
@@ -73,6 +77,7 @@ export default function AIFeedbackChat({ receiptContext, onFeedbackSaved, extern
 
     const response = await base44.integrations.Core.InvokeLLM({
       prompt: contextPrompt,
+      file_urls: imageUrls.length > 0 ? imageUrls : undefined,
       response_json_schema: {
         type: 'object',
         properties: {
@@ -107,11 +112,38 @@ export default function AIFeedbackChat({ receiptContext, onFeedbackSaved, extern
     }
   };
 
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setIsUploading(true);
+    const uploadedUrls = [];
+
+    for (const file of files) {
+      try {
+        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        uploadedUrls.push(file_url);
+      } catch (error) {
+        console.error('Failed to upload image:', error);
+      }
+    }
+
+    setAttachedImages(prev => [...prev, ...uploadedUrls]);
+    setIsUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeImage = (index) => {
+    setAttachedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && attachedImages.length === 0) || isLoading) return;
     const messageToSend = input;
+    const imagesToSend = [...attachedImages];
     setInput('');
-    await handleSendMessage(messageToSend);
+    setAttachedImages([]);
+    await handleSendMessage(messageToSend, imagesToSend);
   };
 
   const quickPrompts = [
@@ -158,6 +190,18 @@ export default function AIFeedbackChat({ receiptContext, onFeedbackSaved, extern
                     ? 'bg-indigo-600 text-white rounded-br-md' 
                     : 'bg-slate-100 text-slate-800 rounded-bl-md'
                 }`}>
+                  {message.images && message.images.length > 0 && (
+                    <div className="flex gap-2 mb-2 flex-wrap">
+                      {message.images.map((img, idx) => (
+                        <img 
+                          key={idx} 
+                          src={img} 
+                          alt={`Attachment ${idx + 1}`}
+                          className="rounded-lg max-w-[200px] max-h-[150px] object-cover border border-white/20"
+                        />
+                      ))}
+                    </div>
+                  )}
                   <p className="text-sm">{message.content}</p>
                 </div>
                 {message.ruleLearned && (
@@ -218,7 +262,47 @@ export default function AIFeedbackChat({ receiptContext, onFeedbackSaved, extern
 
       {/* Input */}
       <div className="p-4 border-t border-slate-200">
+        {attachedImages.length > 0 && (
+          <div className="flex gap-2 mb-3 flex-wrap">
+            {attachedImages.map((img, index) => (
+              <div key={index} className="relative">
+                <img 
+                  src={img} 
+                  alt={`Preview ${index + 1}`}
+                  className="w-16 h-16 object-cover rounded-lg border border-slate-200"
+                />
+                <button
+                  onClick={() => removeImage(index)}
+                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                >
+                  <X className="w-3 h-3 text-white" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex gap-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading || isLoading}
+            className="flex-shrink-0"
+          >
+            {isUploading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Image className="w-4 h-4" />
+            )}
+          </Button>
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -233,8 +317,8 @@ export default function AIFeedbackChat({ receiptContext, onFeedbackSaved, extern
           />
           <Button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            className="bg-indigo-600 hover:bg-indigo-700 h-auto"
+            disabled={(!input.trim() && attachedImages.length === 0) || isLoading}
+            className="bg-indigo-600 hover:bg-indigo-700 h-auto flex-shrink-0"
           >
             <Send className="w-4 h-4" />
           </Button>
