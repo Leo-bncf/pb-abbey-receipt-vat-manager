@@ -57,6 +57,18 @@ export default function Dashboard() {
     },
   });
 
+  const deleteFolderMutation = useMutation({
+    mutationFn: async (folderId) => {
+      await base44.entities.Folder.delete(folderId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+      if (currentFolderId) {
+        setCurrentFolderId(null);
+      }
+    },
+  });
+
   // Calculate stats
   const stats = useMemo(() => {
     const now = new Date();
@@ -315,6 +327,7 @@ export default function Dashboard() {
                 onSelectFolder={setCurrentFolderId}
                 expandedFolders={expandedFolders}
                 onToggleFolder={toggleFolder}
+                onDeleteFolder={(id) => deleteFolderMutation.mutate(id)}
               />
             </div>
           </motion.div>

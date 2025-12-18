@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react';
+import { Folder, FolderOpen, ChevronRight, ChevronDown, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 export default function FolderTree({ 
   folders = [], 
@@ -9,7 +10,8 @@ export default function FolderTree({
   currentFolderId, 
   onSelectFolder,
   expandedFolders = [],
-  onToggleFolder 
+  onToggleFolder,
+  onDeleteFolder
 }) {
   const folderColors = {
     blue: 'bg-blue-100 text-blue-700',
@@ -39,7 +41,7 @@ export default function FolderTree({
       <div key={folder.id}>
         <motion.button
           onClick={() => onSelectFolder(folder.id)}
-          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+          className={`group w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
             isSelected ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50'
           }`}
           style={{ paddingLeft: `${level * 20 + 12}px` }}
@@ -76,6 +78,17 @@ export default function FolderTree({
               {receiptCount}
             </Badge>
           )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (confirm(`Delete folder "${folder.name}"?${receiptCount > 0 ? ` It contains ${receiptCount} receipt(s).` : ''}`)) {
+                onDeleteFolder(folder.id);
+              }
+            }}
+            className="p-1 hover:bg-red-100 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <Trash2 className="w-3 h-3 text-red-500" />
+          </button>
         </motion.button>
         {hasSubfolders && isExpanded && (
           <div>
