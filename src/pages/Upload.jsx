@@ -179,41 +179,71 @@ export default function Upload() {
     - confidence_score: Your confidence 0-100 in the accuracy of extracted data
     - receipt_location: Where in image this receipt is located (e.g., "top-left", "center", "page 6")
 
-    UK VAT DECISION LOGIC (CRITICAL - FOLLOW IN ORDER):
+    ═══════════════════════════════════════════════════════════
+    🛒 ASDA-SPECIFIC VAT RULES (HIGHEST PRIORITY - CHECK FIRST!)
+    ═══════════════════════════════════════════════════════════
+    
+    IF vendor contains "ASDA", "ASDA STORES", "ASDA SUPERSTORE", "ASDA SUPER CENTRE":
+    → Normalize vendor_name to "ASDA"
+    → Set country to "United Kingdom"
+    → ⚠️ CRITICAL: ASDA receipts contain MIXED VAT RATES (0% + 20%) in same receipt!
+    
+    ASDA RULE 1 - Explicit VAT Breakdown (HIGHEST PRIORITY):
+    Look for VAT lines on receipt:
+    - "VAT @ 20.00%: £X.XX"
+    - "VAT @ 0.00%: £0.00"
+    - "Rate 20%: £X.XX"
+    - "Rate 0%: £0.00"
+    
+    If found:
+    → Extract EACH VAT amount separately
+    → Sum all VAT amounts: vat_amount = VAT_0% + VAT_20%
+    → Set vat_explicit = true
+    → Calculate weighted average: vat_rate = (vat_amount / (total_amount - vat_amount)) × 100
+    → extraction_notes = "ASDA mixed VAT: 0%: £X.XX, 20%: £Y.YY, Total VAT: £Z.ZZ"
+    → confidence_score = 95
+    
+    ASDA RULE 2 - Item-Level Classification (if VAT not explicit):
+    Scan items on receipt:
+    • 0% ZERO-RATED: bread, milk, cheese, eggs, fruit, vegetables, meat, fish, rice, pasta, flour, baby food, fresh/frozen food
+    • 20% STANDARD: chocolate, sweets, confectionery, ice cream, soft drinks, alcohol, tobacco, cleaning products, electronics, clothing, toiletries, home goods
+    
+    For each item:
+    → Classify as 0% or 20%
+    → Calculate VAT per item
+    → Sum by rate
+    → vat_amount = total of all VAT
+    → extraction_notes = "ASDA item-level VAT: 0% items: £X.XX, 20% items: £Y.YY"
+    → confidence_score = 75
+    
+    ASDA RULE 3 - Validation:
+    → If VAT > 25% of Total → FLAG ERROR, needs_review = true
+    → If VAT > Total → FLAG ERROR
+    → If VAT < 0 → FLAG ERROR
+    
+    ASDA RULE 4 - Never assume single rate:
+    → NEVER apply single 0% or 20% to entire receipt
+    → ALWAYS expect mixed VAT for ASDA
+    
+    ═══════════════════════════════════════════════════════════
+    
+    GENERAL UK VAT LOGIC (for non-ASDA receipts):
 
     STEP 1: CHECK IF VAT IS PRINTED ON RECEIPT
-    - Look for lines like "VAT", "Tax", "VAT @ 20%", "Total VAT", etc.
-    - If VAT amount is printed → USE THAT EXACT AMOUNT, set vat_explicit=true
-    - Example: ASDA receipt shows "VAT £2.50" → vat_amount=2.50, vat_explicit=true, calculate rate
-    - SKIP TO STEP 4 if VAT is explicit
+    - Look for "VAT", "Tax", "VAT @ 20%" lines
+    - If shown → USE EXACT AMOUNT, set vat_explicit=true
 
-    STEP 2: Check if supplier is VAT-registered (look for VAT number)
-    - If NO VAT number found → vat_rate=0, vat_amount=0, extraction_notes += "No VAT number"
-    - If YES → Continue to STEP 3
+    STEP 2: Check for VAT registration number
+    - NO VAT number → vat_rate=0, vat_amount=0
 
-    STEP 3: Determine VAT category from items (ONLY if VAT not explicit):
-    
-    A) VAT-EXEMPT (0%):
-    Medical/dental, NHS, education, insurance, banking, loans, rent, council tax, stamps
-    → vat_rate=0, vat_amount=0
-    
-    B) ZERO-RATED (0%):
-    Basic groceries ONLY (bread, milk, vegetables, meat - NOT prepared/hot food)
-    → vat_rate=0, vat_amount=0
-    
-    C) REDUCED 5%:
-    Domestic fuel/electricity, energy-saving materials
-    → vat_rate=5, VAT = Total × (5/105)
-    
-    D) STANDARD 20%:
-    Restaurants, cafes, hot takeaways, alcohol, tobacco, prepared foods, adult clothing, electronics, fuel (petrol/diesel), hotels, professional services
-    SUPERMARKETS with standard-rated items (ready meals, alcohol, non-food items)
-    → vat_rate=20, VAT = Total × (20/120)
-    
-    NOTE: Supermarkets like ASDA/Tesco/Sainsbury's often have 20% VAT when selling standard-rated items
+    STEP 3: Determine category (if VAT not explicit):
+    A) VAT-EXEMPT (0%): Medical, education, insurance, banking, rent
+    B) ZERO-RATED (0%): Basic groceries only
+    C) REDUCED 5%: Domestic fuel/electricity
+    D) STANDARD 20%: Restaurants, alcohol, prepared foods, non-food
 
-    STEP 4: Calculate VAT rate if only amount is shown
-    - If vat_explicit=true and vat_rate not shown, calculate: vat_rate = (vat_amount / (total_amount - vat_amount)) × 100
+    STEP 4: Calculate rate if only amount shown:
+    vat_rate = (vat_amount / (total_amount - vat_amount)) × 100
 
     OTHER COUNTRIES VAT CALCULATION:
     - Germany: 19% → VAT = Total × (19/119)
