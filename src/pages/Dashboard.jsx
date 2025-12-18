@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   FileText, Upload, Coins, Percent, Building2, 
   TrendingUp, AlertCircle, Download, Filter, 
-  Grid, List, Search, Calendar
+  Grid, List, Search, Calendar, Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,10 +27,25 @@ export default function Dashboard() {
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [sortField, setSortField] = useState('created_date');
   const [sortDirection, setSortDirection] = useState('desc');
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const { data: receipts = [], isLoading } = useQuery({
     queryKey: ['receipts'],
     queryFn: () => base44.entities.Receipt.list('-created_date'),
+  });
+
+  const queryClient = useQueryClient();
+
+  const deleteReceiptsMutation = useMutation({
+    mutationFn: async (ids) => {
+      for (const id of ids) {
+        await base44.entities.Receipt.delete(id);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['receipts'] });
+      setSelectedIds([]);
+    },
   });
 
   // Calculate stats
@@ -137,6 +152,12 @@ export default function Dashboard() {
     }
   };
 
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Delete ${selectedIds.length} receipt(s)?`)) return;
+    await deleteReceiptsMutation.mutateAsync(selectedIds);
+  };
+
   const formatCurrency = (amount) => `£${(amount || 0).toFixed(2)}`;
 
   return (
@@ -144,11 +165,27 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">Receipt Dashboard</h1>
-            <p className="text-slate-500">Manage and track your business receipts</p>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+              <Building2 className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800">Receipt Dashboard</h1>
+              <p className="text-slate-500">Manage and track your business receipts</p>
+            </div>
           </div>
           <div className="flex gap-3">
+            {selectedIds.length > 0 && (
+              <Button 
+                variant="outline" 
+                className="gap-2 text-red-600 hover:bg-red-50 border-red-200"
+                onClick={handleDeleteSelected}
+                disabled={deleteReceiptsMutation.isPending}
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete ({selectedIds.length})
+              </Button>
+            )}
             <Link to={createPageUrl('Reports')}>
               <Button variant="outline" className="gap-2">
                 <Download className="w-4 h-4" />
@@ -308,8 +345,8 @@ export default function Dashboard() {
             sortField={sortField}
             sortDirection={sortDirection}
             onSort={handleSort}
-            selectedIds={[]}
-            onSelectionChange={() => {}}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
           />
         )}
 

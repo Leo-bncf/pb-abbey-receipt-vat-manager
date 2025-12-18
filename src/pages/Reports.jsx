@@ -34,6 +34,8 @@ export default function Reports() {
 
   // Filter receipts by date range
   const filteredReceipts = useMemo(() => {
+    if (dateRange === 'all') return receipts;
+
     const now = new Date();
     let startDate;
 
@@ -55,7 +57,8 @@ export default function Reports() {
     }
 
     return receipts.filter(r => {
-      if (!r.receipt_date) return false;
+      // Include receipts without dates when filtering by date
+      if (!r.receipt_date) return true;
       return new Date(r.receipt_date) >= startDate;
     });
   }, [receipts, dateRange]);
@@ -65,9 +68,15 @@ export default function Reports() {
     const monthlyMap = {};
     
     filteredReceipts.forEach(receipt => {
-      if (!receipt.receipt_date) return;
-      const date = new Date(receipt.receipt_date);
-      const key = format(date, 'MMM yyyy');
+      let key;
+      if (receipt.receipt_date) {
+        const date = new Date(receipt.receipt_date);
+        key = format(date, 'MMM yyyy');
+      } else {
+        // Use created_date for receipts without receipt_date
+        const date = new Date(receipt.created_date);
+        key = format(date, 'MMM yyyy');
+      }
       
       if (!monthlyMap[key]) {
         monthlyMap[key] = { month: key, vat: 0, total: 0, count: 0 };
