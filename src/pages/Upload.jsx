@@ -22,6 +22,38 @@ export default function Upload() {
     return ext;
   };
 
+  const detectMultipleReceipts = async (fileUrl) => {
+    const detectionPrompt = `Analyze this image/document carefully. Does it contain MULTIPLE separate receipts on the same page/image?
+    
+    Look for:
+    - Multiple store names/logos
+    - Multiple transaction dates
+    - Multiple "TOTAL" amounts
+    - Multiple receipt headers/footers
+    - Receipts positioned in different areas of the page
+    
+    If there are multiple receipts, describe the location of each one (e.g., "top-left", "top-right", "bottom-left", "bottom-right", "center").`;
+    
+    const result = await base44.integrations.Core.InvokeLLM({
+      prompt: detectionPrompt,
+      file_urls: [fileUrl],
+      response_json_schema: {
+        type: 'object',
+        properties: {
+          has_multiple_receipts: { type: 'boolean' },
+          receipt_count: { type: 'number' },
+          receipt_locations: { 
+            type: 'array', 
+            items: { type: 'string' },
+            description: 'Location description for each receipt'
+          }
+        }
+      }
+    });
+    
+    return result;
+  };
+
   const processReceipt = async (fileUrl, fileName, fileType, batchId) => {
     // Fetch learned rules and corrections
     const feedbackData = await base44.entities.AIFeedback.list('-created_date', 50);
@@ -64,7 +96,9 @@ export default function Upload() {
     }
     
     // Use AI to extract data from the receipt
-    const extractionPrompt = `Analyze this receipt image/document and extract the following information:
+    const extractionPrompt = `IMPORTANT: This image may contain MULTIPLE receipts. Extract data from ALL receipts visible in the image, not just one.
+    
+    Analyze this receipt image/document and extract the following information:
     - vendor_name: The name of the vendor/store/company
     - receipt_date: The date on the receipt (format: YYYY-MM-DD)
     - country: The country where the purchase was made (infer from currency, language, or address)
@@ -91,6 +125,8 @@ export default function Upload() {
 
     ${learningContext}
 
+    CRITICAL RULE: If there are MULTIPLE receipts in this image (multiple stores, multiple totals, multiple dates), you MUST return data as an array with one entry per receipt. DO NOT combine multiple receipts into one entry. Each physical receipt must be a separate object.
+
     IMPORTANT: Apply the learned rules and corrections above to improve extraction accuracy. Pay special attention to patterns that were corrected before.`;
 
     const result = await base44.integrations.Core.InvokeLLM({
@@ -99,61 +135,84 @@ export default function Upload() {
       response_json_schema: {
         type: 'object',
         properties: {
-          vendor_name: { type: 'string' },
-          receipt_date: { type: 'string' },
-          country: { type: 'string' },
-          currency: { type: 'string' },
-          total_amount: { type: 'number' },
-          vat_amount: { type: 'number' },
-          vat_rate: { type: 'number' },
-          vat_explicit: { type: 'boolean' },
-          is_tax_free: { type: 'boolean' },
-          ocr_text: { type: 'string' },
-          extraction_notes: { type: 'string' },
-          confidence_score: { type: 'number', description: 'Your confidence in the extraction 0-100' }
+          receipts: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                vendor_name: { type: 'string' },
+                receipt_date: { type: 'string' },
+                country: { type: 'string' },
+                currency: { type: 'string' },
+                total_amount: { type: 'number' },
+                vat_amount: { type: 'number' },
+                vat_rate: { type: 'number' },
+                vat_explicit: { type: 'boolean' },
+                is_tax_free: { type: 'boolean' },
+                ocr_text: { type: 'string' },
+                extraction_notes: { type: 'string' },
+                confidence_score: { type: 'number', description: 'Your confidence in the extraction 0-100' },
+                receipt_location: { type: 'string', description: 'Where this receipt is located in the image' }
+              }
+            }
+          }
         }
       }
     });
 
-    // Calculate VAT if not explicit and not tax-free
-    let vatAmount = result.vat_amount;
-    let vatRate = result.vat_rate;
+    // Process each receipt found in the image
+    const receiptsData = [];
+    const extractedReceipts = result.receipts || [];
     
-    // For EUR receipts, always set VAT to 0 (company policy: only track full amount)
-    if (result.currency === 'EUR') {
-      vatAmount = 0;
-      vatRate = 0;
-    } else if (!result.vat_explicit && !result.is_tax_free && result.total_amount && result.vat_rate) {
-      vatAmount = result.total_amount - (result.total_amount / (1 + result.vat_rate / 100));
-      vatAmount = Math.round(vatAmount * 100) / 100;
+    for (let i = 0; i < extractedReceipts.length; i++) {
+      const receipt = extractedReceipts[i];
+      
+      // Calculate VAT if not explicit and not tax-free
+      let vatAmount = receipt.vat_amount;
+      let vatRate = receipt.vat_rate;
+      
+      // For EUR receipts, always set VAT to 0 (company policy: only track full amount)
+      if (receipt.currency === 'EUR') {
+        vatAmount = 0;
+        vatRate = 0;
+      } else if (!receipt.vat_explicit && !receipt.is_tax_free && receipt.total_amount && receipt.vat_rate) {
+        vatAmount = receipt.total_amount - (receipt.total_amount / (1 + receipt.vat_rate / 100));
+        vatAmount = Math.round(vatAmount * 100) / 100;
+      }
+
+      // Determine if needs review
+      const needsReview = (receipt.confidence_score || 0) < 70 || 
+                          !receipt.vendor_name || 
+                          !receipt.total_amount;
+
+      const receiptSuffix = extractedReceipts.length > 1 ? ` [${i + 1}/${extractedReceipts.length}]` : '';
+      
+      receiptsData.push({
+        file_url: fileUrl,
+        file_name: fileName + receiptSuffix,
+        file_type: fileType,
+        status: 'extracted',
+        ocr_text: receipt.ocr_text || '',
+        vendor_name: receipt.vendor_name || '',
+        receipt_date: receipt.receipt_date || '',
+        country: receipt.country || '',
+        currency: receipt.currency || 'GBP',
+        total_amount: receipt.total_amount || 0,
+        vat_amount: vatAmount || 0,
+        vat_rate: vatRate || 0,
+        vat_explicit: receipt.vat_explicit || false,
+        is_tax_free: receipt.is_tax_free || false,
+        confidence_score: receipt.confidence_score || 50,
+        needs_review: needsReview,
+        is_reviewed: false,
+        upload_batch: batchId,
+        extraction_notes: (receipt.extraction_notes || '') + 
+          (receipt.receipt_location ? ` [Location: ${receipt.receipt_location}]` : '') +
+          (extractedReceipts.length > 1 ? ` [Part ${i + 1} of ${extractedReceipts.length} receipts from same image]` : '')
+      });
     }
-
-    // Determine if needs review
-    const needsReview = (result.confidence_score || 0) < 70 || 
-                        !result.vendor_name || 
-                        !result.total_amount;
-
-    return {
-      file_url: fileUrl,
-      file_name: fileName,
-      file_type: fileType,
-      status: 'extracted',
-      ocr_text: result.ocr_text || '',
-      vendor_name: result.vendor_name || '',
-      receipt_date: result.receipt_date || '',
-      country: result.country || '',
-      currency: result.currency || 'GBP',
-      total_amount: result.total_amount || 0,
-      vat_amount: vatAmount || 0,
-      vat_rate: vatRate || 0,
-      vat_explicit: result.vat_explicit || false,
-      is_tax_free: result.is_tax_free || false,
-      confidence_score: result.confidence_score || 50,
-      needs_review: needsReview,
-      is_reviewed: false,
-      upload_batch: batchId,
-      extraction_notes: result.extraction_notes || ''
-    };
+    
+    return receiptsData;
   };
 
   const handleFilesSelected = async (files) => {
@@ -180,13 +239,14 @@ export default function Upload() {
         // Upload file
         const { file_url } = await base44.integrations.Core.UploadFile({ file });
         
-        // Process with AI
-        const receiptData = await processReceipt(file_url, file.name, getFileType(file), batchId);
+        // Process with AI (may return multiple receipts from one image)
+        const receiptsData = await processReceipt(file_url, file.name, getFileType(file), batchId);
         
-        // Save to database
-        const savedReceipt = await base44.entities.Receipt.create(receiptData);
-        
-        results.push({ ...savedReceipt, success: true });
+        // Save each receipt to database
+        for (const receiptData of receiptsData) {
+          const savedReceipt = await base44.entities.Receipt.create(receiptData);
+          results.push({ ...savedReceipt, success: true });
+        }
       } catch (error) {
         console.error(`Error processing ${file.name}:`, error);
         errorList.push({ fileName: file.name, error: error.message });
@@ -283,7 +343,8 @@ export default function Upload() {
                 Processing Complete
               </h3>
               <p className="text-slate-500 text-center mb-2">
-                Successfully processed {processedFiles.filter(f => f.success).length} of {processedFiles.length + errors.length} receipts
+                Successfully processed {processedFiles.filter(f => f.success).length} receipt{processedFiles.filter(f => f.success).length !== 1 ? 's' : ''}
+                {errors.length > 0 ? ` (${errors.length} failed)` : ''}
               </p>
               <p className="text-sm text-slate-400 text-center mb-8">
                 Completed in {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}
