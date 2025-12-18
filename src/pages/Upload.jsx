@@ -55,24 +55,28 @@ export default function Upload() {
   };
 
   const processReceipt = async (fileUrl, fileName, fileType, batchId) => {
-    // Fetch learned rules and corrections
-    const feedbackData = await base44.entities.AIFeedback.list('-created_date', 50);
-    const correctionsData = await base44.entities.ReceiptCorrection.list('-created_date', 100);
-    
-    // Build learning context
-    let learningContext = '';
-    
+    // Fetch ALL learned rules and corrections
+    const feedbackData = await base44.entities.AIFeedback.list('-created_date', 100);
+    const correctionsData = await base44.entities.ReceiptCorrection.list('-created_date', 200);
+
+    // Build comprehensive learning context
+    let learningContext = '\n\n========================================\n';
+    learningContext += 'CRITICAL: LEARNED PATTERNS FROM ADMIN TRAINING\n';
+    learningContext += '========================================\n';
+
     if (feedbackData.length > 0) {
-      learningContext += '\n\nLEARNED RULES AND PATTERNS:\n';
+      learningContext += '\nAPPLY THESE LEARNED RULES:\n';
       feedbackData.forEach(f => {
         if (f.rule_learned) {
-          learningContext += `- ${f.rule_learned}\n`;
+          learningContext += `✓ ${f.rule_learned}\n`;
         }
       });
     }
-    
+
     if (correctionsData.length > 0) {
-      learningContext += '\n\nPREVIOUS CORRECTIONS TO LEARN FROM:\n';
+      learningContext += '\n\nCOMMON MISTAKES TO AVOID (from admin corrections):\n';
+
+      // Group corrections by field to identify patterns
       const correctionsByField = {};
       correctionsData.forEach(c => {
         if (!correctionsByField[c.field_name]) {
@@ -84,22 +88,75 @@ export default function Upload() {
           reason: c.correction_reason
         });
       });
-      
+
+      // Analyze patterns for each field
       Object.entries(correctionsByField).forEach(([field, corrections]) => {
-        learningContext += `\n${field}:\n`;
-        corrections.slice(0, 5).forEach(c => {
-          learningContext += `  • Originally extracted "${c.from}" but correct value was "${c.to}"`;
-          if (c.reason) learningContext += ` (${c.reason})`;
-          learningContext += '\n';
+        learningContext += `\n${field.toUpperCase()}:\n`;
+
+        // Show specific corrections
+        const uniqueCorrections = corrections.slice(0, 10);
+        uniqueCorrections.forEach(c => {
+          learningContext += `  ✗ WRONG: "${c.from}"\n`;
+          learningContext += `  ✓ CORRECT: "${c.to}"\n`;
+          if (c.reason) learningContext += `    Reason: ${c.reason}\n`;
         });
+
+        // Identify patterns
+        if (corrections.length >= 3) {
+          const pattern = identifyPattern(corrections, field);
+          if (pattern) {
+            learningContext += `  ⚠️ PATTERN: ${pattern}\n`;
+          }
+        }
       });
+    }
+
+    if (feedbackData.length === 0 && correctionsData.length === 0) {
+      learningContext += '\n(No training data yet - extract as accurately as possible)\n';
+    }
+
+    learningContext += '\n========================================\n\n';
+
+    // Helper function to identify patterns
+    function identifyPattern(corrections, field) {
+      if (field === 'vendor_name') {
+        // Check for common vendor name issues
+        const hasSpellingIssues = corrections.some(c => 
+          c.from?.toLowerCase() !== c.to?.toLowerCase() && 
+          c.from?.length === c.to?.length
+        );
+        if (hasSpellingIssues) return 'Pay extra attention to vendor name spelling';
+
+        const hasCaseIssues = corrections.some(c => 
+          c.from?.toLowerCase() === c.to?.toLowerCase()
+        );
+        if (hasCaseIssues) return 'Use proper capitalization for vendor names';
+      }
+
+      if (field === 'vat_amount' || field === 'total_amount') {
+        const hasDecimalIssues = corrections.some(c => 
+          Math.abs(parseFloat(c.from) - parseFloat(c.to)) < 0.1
+        );
+        if (hasDecimalIssues) return 'Double-check decimal point placement in amounts';
+      }
+
+      if (field === 'country') {
+        return 'Infer country from currency, VAT format, and language on receipt';
+      }
+
+      return null;
     }
     
     // Use AI to extract data from the receipt
-    const extractionPrompt = `CRITICAL: This image may contain MULTIPLE separate receipts. You must extract data from ALL receipts visible, creating one entry per physical receipt.
+    const extractionPrompt = `CRITICAL INSTRUCTIONS - READ CAREFULLY:
+
+    You have been trained by admin corrections and feedback. Apply ALL learned patterns below.
+
+    ${learningContext}
 
     EXTRACTION TASK:
-    Read this receipt image/document with MAXIMUM ACCURACY and extract these fields for EACH receipt:
+    This image may contain MULTIPLE separate receipts. Extract data from ALL receipts visible, creating one entry per physical receipt.
+    Read with MAXIMUM ACCURACY and extract these fields for EACH receipt:
 
     REQUIRED FIELDS:
     - vendor_name: Exact business name as shown (read carefully, check spelling)

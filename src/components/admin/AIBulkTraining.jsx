@@ -119,42 +119,58 @@ Return an array with one object per receipt found. Be precise with numbers and s
   const saveTraining = async () => {
     const user = await base44.auth.me();
     
-    // Create training feedback based on corrections
-    const corrections = [];
+    // Analyze corrections to create specific learning rules
     const learnings = [];
+    const specificRules = [];
 
     extractedReceipts.forEach((receipt, index) => {
       if (feedback[index] === 'incorrect') {
-        // User made corrections - save them
+        // User made corrections - identify specific patterns
         learnings.push({
           receipt_data: receipt,
           feedback_type: 'correction',
-          user_message: `Corrected receipt ${index + 1}: ${receipt.vendor_name}`,
+          user_message: `Corrected extraction for ${receipt.vendor_name}: Total=${receipt.total_amount} ${receipt.currency}, VAT=${receipt.vat_amount}`,
           corrected_by: user.email
         });
+        
+        // Create specific learning rules
+        specificRules.push(
+          `For vendor "${receipt.vendor_name}": total is ${receipt.total_amount} ${receipt.currency}, VAT is ${receipt.vat_amount} (${receipt.vat_rate}%)`
+        );
+        
+        if (receipt.country) {
+          specificRules.push(
+            `Vendor "${receipt.vendor_name}" is located in ${receipt.country}`
+          );
+        }
       } else if (feedback[index] === 'correct') {
         learnings.push({
           receipt_data: receipt,
           feedback_type: 'confirmation',
-          user_message: `Confirmed correct extraction for ${receipt.vendor_name}`,
+          user_message: `Confirmed correct: ${receipt.vendor_name}, ${receipt.total_amount} ${receipt.currency}`,
           corrected_by: user.email
         });
+        
+        // Reinforce correct patterns
+        specificRules.push(
+          `Correctly identified: "${receipt.vendor_name}" with total ${receipt.total_amount} ${receipt.currency}`
+        );
       }
     });
 
-    // Save feedback to AI learning system
-    for (const learning of learnings) {
+    // Save detailed feedback to AI learning system
+    for (let i = 0; i < learnings.length; i++) {
+      const learning = learnings[i];
       await base44.entities.AIFeedback.create({
         feedback_type: learning.feedback_type,
         user_message: learning.user_message,
-        rule_learned: learning.feedback_type === 'correction' 
-          ? `Updated extraction pattern for vendor: ${learning.receipt_data.vendor_name}`
-          : `Confirmed accuracy for vendor: ${learning.receipt_data.vendor_name}`,
+        rule_learned: specificRules[i],
+        is_applied: true,
         submitted_by: user.email
       });
     }
 
-    alert('Training saved! The AI will learn from your feedback.');
+    alert(`Training saved! ${learnings.length} patterns will improve future extractions.`);
     
     // Reset
     setFile(null);
