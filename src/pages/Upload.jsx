@@ -165,11 +165,13 @@ export default function Upload() {
     - currency: Currency code (GBP, EUR, USD, etc.) - check the symbol on amounts
     - total_amount: Final total paid (number only, be precise)
 
-    VAT FIELDS:
-    - vat_amount: VAT/tax amount if explicitly shown (number only)
-    - vat_rate: VAT rate percentage if shown (e.g., 20 for 20%)
-    - vat_explicit: true ONLY if VAT/Tax line is printed on receipt
+    VAT FIELDS (CRITICAL - READ CAREFULLY):
+    - vat_explicit: true if receipt shows "VAT", "Tax", "TVA" line with amount (CHECK FIRST!)
+    - vat_amount: If vat_explicit=true, extract the exact VAT amount shown on receipt
+    - vat_rate: If vat_explicit=true, extract or calculate the rate from receipt
     - is_tax_free: true if receipt says "No Tax", "Tax Free", "Tax Exempt"
+    
+    IMPORTANT: If receipt explicitly shows VAT (e.g., "VAT @ 20%: £2.50"), set vat_explicit=true and use that exact amount!
 
     TEXT & NOTES:
     - ocr_text: Complete text from receipt (preserve formatting, read everything)
@@ -177,31 +179,41 @@ export default function Upload() {
     - confidence_score: Your confidence 0-100 in the accuracy of extracted data
     - receipt_location: Where in image this receipt is located (e.g., "top-left", "center", "page 6")
 
-    UK VAT DECISION LOGIC (CRITICAL - FOLLOW EXACTLY):
+    UK VAT DECISION LOGIC (CRITICAL - FOLLOW IN ORDER):
 
-    STEP 1: Check if supplier is VAT-registered (look for VAT number on receipt)
-    - If NO VAT number found → vat_rate = 0, vat_amount = 0, extraction_notes += "No VAT number - supplier not VAT-registered"
-    - If YES → Continue to STEP 2
+    STEP 1: CHECK IF VAT IS PRINTED ON RECEIPT
+    - Look for lines like "VAT", "Tax", "VAT @ 20%", "Total VAT", etc.
+    - If VAT amount is printed → USE THAT EXACT AMOUNT, set vat_explicit=true
+    - Example: ASDA receipt shows "VAT £2.50" → vat_amount=2.50, vat_explicit=true, calculate rate
+    - SKIP TO STEP 4 if VAT is explicit
 
-    STEP 2: Determine VAT category based on items/services:
+    STEP 2: Check if supplier is VAT-registered (look for VAT number)
+    - If NO VAT number found → vat_rate=0, vat_amount=0, extraction_notes += "No VAT number"
+    - If YES → Continue to STEP 3
 
-    CATEGORY A — VAT-EXEMPT (NO VAT):
-    - Medical/dental care, NHS, education, insurance, banking, loans, residential rent, council tax, postage stamps
-    → vat_rate = 0, vat_amount = 0, extraction_notes += "VAT-exempt items"
+    STEP 3: Determine VAT category from items (ONLY if VAT not explicit):
+    
+    A) VAT-EXEMPT (0%):
+    Medical/dental, NHS, education, insurance, banking, loans, rent, council tax, stamps
+    → vat_rate=0, vat_amount=0
+    
+    B) ZERO-RATED (0%):
+    Basic groceries ONLY (bread, milk, vegetables, meat - NOT prepared/hot food)
+    → vat_rate=0, vat_amount=0
+    
+    C) REDUCED 5%:
+    Domestic fuel/electricity, energy-saving materials
+    → vat_rate=5, VAT = Total × (5/105)
+    
+    D) STANDARD 20%:
+    Restaurants, cafes, hot takeaways, alcohol, tobacco, prepared foods, adult clothing, electronics, fuel (petrol/diesel), hotels, professional services
+    SUPERMARKETS with standard-rated items (ready meals, alcohol, non-food items)
+    → vat_rate=20, VAT = Total × (20/120)
+    
+    NOTE: Supermarkets like ASDA/Tesco/Sainsbury's often have 20% VAT when selling standard-rated items
 
-    CATEGORY B — ZERO-RATED (0% VAT but reclaimable):
-    - Basic food (not hot takeaway/alcohol), children's clothing, books, newspapers, water supply, public transport
-    → vat_rate = 0, vat_amount = 0, extraction_notes += "Zero-rated items"
-
-    CATEGORY C — REDUCED-RATED (5% VAT):
-    - Domestic fuel/power (gas, electricity), energy-saving materials
-    → vat_rate = 5, VAT = Total × (5/105)
-
-    CATEGORY D — STANDARD-RATED (20% VAT):
-    - Restaurant meals, hot takeaways, alcohol, adult clothing, electronics, fuel (petrol/diesel), hotels, professional services
-    → vat_rate = 20, VAT = Total × (20/120)
-
-    DEFAULT: If category unclear → assume STANDARD-RATED (20%)
+    STEP 4: Calculate VAT rate if only amount is shown
+    - If vat_explicit=true and vat_rate not shown, calculate: vat_rate = (vat_amount / (total_amount - vat_amount)) × 100
 
     OTHER COUNTRIES VAT CALCULATION:
     - Germany: 19% → VAT = Total × (19/119)
@@ -210,7 +222,11 @@ export default function Upload() {
     - Spain: 21% → VAT = Total × (21/121)
     - Italy: 22% → VAT = Total × (22/122)
 
-    ${learningContext}
+    CRITICAL REMINDERS:
+    - ALWAYS check if VAT is printed on the receipt FIRST before applying category logic
+    - If receipt shows VAT amount, use it exactly - don't recalculate
+    - Supermarkets CAN have 20% VAT (alcohol, prepared foods, non-food items)
+    - Read the receipt text carefully for VAT lines
 
     MULTI-RECEIPT DETECTION:
     Look for indicators of multiple receipts:
