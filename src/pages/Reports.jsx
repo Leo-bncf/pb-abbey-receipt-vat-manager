@@ -19,7 +19,7 @@ import { format, startOfMonth, endOfMonth, subMonths, parseISO, getMonth, getYea
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
 export default function Reports() {
-  const [dateRange, setDateRange] = useState('last_6_months');
+  const [dateRange, setDateRange] = useState('all');
   const [exportFormat, setExportFormat] = useState('excel');
 
   const { data: receipts = [], isLoading } = useQuery({
