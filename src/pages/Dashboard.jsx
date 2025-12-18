@@ -176,7 +176,7 @@ export default function Dashboard() {
           <StatsCard
             title="Total VAT"
             value={formatCurrency(stats.totalVAT)}
-            subtitle="This month: " + formatCurrency(stats.thisMonthVAT)
+            subtitle={`This month: ${formatCurrency(stats.thisMonthVAT)}`}
             icon={Percent}
             color="emerald"
             index={1}
