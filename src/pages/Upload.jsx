@@ -226,11 +226,14 @@ export default function Upload() {
     - For PDFs: the page number like "page 1", "page 2", etc.
     Be as specific as possible to help locate the exact receipt.
 
-    ACCURACY REQUIREMENTS:
-    - Read numbers precisely - double-check all amounts
-    - Verify vendor name spelling matches what's printed
-    - Ensure date is correct format
-    - Apply previous corrections from learning context above`;
+    ACCURACY REQUIREMENTS (CRITICAL):
+    - Read numbers precisely - double-check all amounts against the receipt
+    - Verify vendor name spelling EXACTLY as printed (check character by character)
+    - Ensure date is correct format YYYY-MM-DD
+    - Apply ALL learned patterns and corrections from the training context above
+    - If similar to a previous correction, use the corrected approach
+    - When uncertain, default to the most common pattern from training data
+    - Double-check your extraction against the training rules before returning`;
 
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: extractionPrompt,
