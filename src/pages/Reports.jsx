@@ -143,6 +143,25 @@ export default function Reports() {
 
   // Generate Excel export
   const exportToExcel = async () => {
+    // Fetch EUR/GBP exchange rate
+    let eurToGbp = 1;
+    try {
+      const ratePrompt = `Go to https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/eurofxref-graph-gbp.en.html and extract today's EUR to GBP exchange rate. Return just the number.`;
+      const rateResult = await base44.integrations.Core.InvokeLLM({
+        prompt: ratePrompt,
+        add_context_from_internet: true,
+        response_json_schema: {
+          type: 'object',
+          properties: {
+            rate: { type: 'number', description: 'EUR to GBP exchange rate' }
+          }
+        }
+      });
+      eurToGbp = rateResult.rate || 1;
+    } catch (e) {
+      console.error('Failed to fetch exchange rate:', e);
+    }
+
     // Create CSV content
     let csvContent = "data:text/csv;charset=utf-8,";
     
@@ -181,13 +200,17 @@ export default function Reports() {
 
     // Detailed receipts
     csvContent += "DETAILED RECEIPTS\n\n";
-    csvContent += "Date,Vendor,Country,Currency,Total,VAT,VAT Rate,File,Batch\n";
+    csvContent += "Date,Vendor,Country,Currency,Total,Total (GBP),VAT,VAT Rate,File,Batch\n";
     filteredReceipts.forEach(r => {
+      const totalAmount = r.total_amount || 0;
+      const totalGbp = r.currency === 'EUR' ? totalAmount * eurToGbp : totalAmount;
+      
       csvContent += `${r.receipt_date || ''},`;
       csvContent += `"${r.vendor_name || ''}",`;
       csvContent += `${r.country || ''},`;
       csvContent += `${r.currency || ''},`;
-      csvContent += `${r.total_amount || 0},`;
+      csvContent += `${totalAmount.toFixed(2)},`;
+      csvContent += `£${totalGbp.toFixed(2)},`;
       csvContent += `${r.vat_amount || 0},`;
       csvContent += `${r.vat_rate || 0}%,`;
       csvContent += `"${r.file_name || ''}",`;

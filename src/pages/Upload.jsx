@@ -117,7 +117,12 @@ export default function Upload() {
     // Calculate VAT if not explicit and not tax-free
     let vatAmount = result.vat_amount;
     let vatRate = result.vat_rate;
-    if (!result.vat_explicit && !result.is_tax_free && result.total_amount && result.vat_rate) {
+    
+    // For EUR receipts, always set VAT to 0 (company policy: only track full amount)
+    if (result.currency === 'EUR') {
+      vatAmount = 0;
+      vatRate = 0;
+    } else if (!result.vat_explicit && !result.is_tax_free && result.total_amount && result.vat_rate) {
       vatAmount = result.total_amount - (result.total_amount / (1 + result.vat_rate / 100));
       vatAmount = Math.round(vatAmount * 100) / 100;
     }
