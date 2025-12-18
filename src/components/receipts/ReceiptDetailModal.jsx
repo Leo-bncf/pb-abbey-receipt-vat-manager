@@ -35,62 +35,26 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
       const locationMatch = receipt.extraction_notes?.match(/\[Location: ([^\]]+)\]/);
       const location = locationMatch ? locationMatch[1] : 'the receipt';
 
-      // Ask AI to identify bounding box coordinates
-      const cropPrompt = `Analyze this image with multiple receipts. Identify the bounding box for the receipt located at: ${location}.
+      // Generate a cropped version of the image
+      const cropPrompt = `Create a cropped version of this image showing ONLY the receipt at ${location}. 
 
-Receipt details to identify:
+This specific receipt has:
 - Vendor: ${receipt.vendor_name}
 - Date: ${receipt.receipt_date}
-- Total: ${receipt.total_amount} ${receipt.currency}
+- Total amount: ${receipt.total_amount} ${receipt.currency}
 
-Provide the bounding box as percentages of the image dimensions (0-100) with some padding:
-- x: left edge percentage
-- y: top edge percentage  
-- width: width percentage
-- height: height percentage`;
+Crop tightly around this receipt with minimal padding. Remove all other receipts from view. The output should be a clear, zoomed-in view of just this one receipt that is easy to read.`;
 
-      const result = await base44.integrations.Core.InvokeLLM({
+      const result = await base44.integrations.Core.GenerateImage({
         prompt: cropPrompt,
-        file_urls: [receipt.file_url],
-        response_json_schema: {
-          type: 'object',
-          properties: {
-            x: { type: 'number', description: 'Left position as percentage' },
-            y: { type: 'number', description: 'Top position as percentage' },
-            width: { type: 'number', description: 'Width as percentage' },
-            height: { type: 'number', description: 'Height as percentage' }
-          }
-        }
+        existing_image_urls: [receipt.file_url]
       });
 
-      // Create cropped image using canvas
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        const cropX = (result.x / 100) * img.width;
-        const cropY = (result.y / 100) * img.height;
-        const cropWidth = (result.width / 100) * img.width;
-        const cropHeight = (result.height / 100) * img.height;
-        
-        canvas.width = cropWidth;
-        canvas.height = cropHeight;
-        
-        ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-        
-        setCroppedImageUrl(canvas.toDataURL('image/jpeg', 0.95));
-        setIsLoadingCrop(false);
-      };
-      img.onerror = () => {
-        setCroppedImageUrl(receipt.file_url);
-        setIsLoadingCrop(false);
-      };
-      img.src = receipt.file_url;
+      setCroppedImageUrl(result.url);
     } catch (error) {
       console.error('Failed to crop receipt:', error);
       setCroppedImageUrl(receipt.file_url);
+    } finally {
       setIsLoadingCrop(false);
     }
   };
