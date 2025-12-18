@@ -342,7 +342,7 @@ export default function Dashboard() {
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="w-64 bg-white rounded-xl border border-slate-200 p-4 h-fit"
+            className="w-80 bg-white rounded-xl border border-slate-200 p-4 h-fit"
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-slate-800 text-sm">Folders</h3>
