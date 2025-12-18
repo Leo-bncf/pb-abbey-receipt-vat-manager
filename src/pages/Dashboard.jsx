@@ -69,6 +69,15 @@ export default function Dashboard() {
     },
   });
 
+  const renameFolderMutation = useMutation({
+    mutationFn: async ({ folderId, name }) => {
+      await base44.entities.Folder.update(folderId, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['folders'] });
+    },
+  });
+
   // Calculate stats
   const stats = useMemo(() => {
     const now = new Date();
@@ -328,6 +337,7 @@ export default function Dashboard() {
                 expandedFolders={expandedFolders}
                 onToggleFolder={toggleFolder}
                 onDeleteFolder={(id) => deleteFolderMutation.mutate(id)}
+                onRenameFolder={(id, name) => renameFolderMutation.mutate({ folderId: id, name })}
               />
             </div>
           </motion.div>
