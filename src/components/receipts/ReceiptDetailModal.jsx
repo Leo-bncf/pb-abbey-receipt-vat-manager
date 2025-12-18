@@ -16,6 +16,15 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
                          receipt.file_name?.includes('[');
   const locationMatch = receipt.extraction_notes?.match(/\[Location: ([^\]]+)\]/);
   const location = locationMatch ? locationMatch[1] : null;
+  
+  // Extract page number if mentioned (e.g., "page 2", "page 5")
+  const pageMatch = receipt.extraction_notes?.match(/page (\d+)/i) || location?.match(/page (\d+)/i);
+  const pageNumber = pageMatch ? parseInt(pageMatch[1]) : null;
+  
+  // For PDFs, append page number to URL
+  const displayUrl = receipt.file_type === 'pdf' && pageNumber 
+    ? `${receipt.file_url}#page=${pageNumber}`
+    : receipt.file_url;
 
   const formatCurrency = (amount, currency) => {
     if (!amount && amount !== 0) return '-';
@@ -90,19 +99,19 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
                 </div>
               )}
               <div className="aspect-[3/4] rounded-xl bg-slate-800 border border-slate-700 overflow-auto relative">
-                {receipt.file_url ? (
+                {displayUrl ? (
                   receipt.file_type === 'pdf' ? (
                     <iframe 
-                      src={receipt.file_url} 
+                      src={displayUrl} 
                       className="w-full h-full"
                       title="Receipt PDF"
                     />
                   ) : (
                     <img 
-                      src={receipt.file_url} 
+                      src={displayUrl} 
                       alt="Receipt" 
                       className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition-all"
-                      onClick={() => window.open(receipt.file_url, '_blank')}
+                      onClick={() => window.open(displayUrl, '_blank')}
                       style={{ imageRendering: 'crisp-edges' }}
                     />
                   )
@@ -116,10 +125,10 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
                 variant="outline"
                 size="sm"
                 className="mt-4 w-full bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700"
-                onClick={() => window.open(receipt.file_url, '_blank')}
+                onClick={() => window.open(displayUrl, '_blank')}
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
-                Open Full Size
+                {pageNumber ? `Open Page ${pageNumber}` : 'Open Full Size'}
               </Button>
             </div>
 

@@ -139,7 +139,11 @@ export default function Upload() {
     - Different receipt numbers
     - Receipts in different positions on the page
 
-    If you find multiple receipts, return an array with one object per receipt. Include receipt_location for each.
+    If you find multiple receipts, return an array with one object per receipt. 
+    For receipt_location, specify:
+    - For images: position like "top-left", "bottom-right", "center"
+    - For PDFs: the page number like "page 1", "page 2", etc.
+    Be as specific as possible to help locate the exact receipt.
 
     ACCURACY REQUIREMENTS:
     - Read numbers precisely - double-check all amounts
