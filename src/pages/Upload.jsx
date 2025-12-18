@@ -22,6 +22,46 @@ export default function Upload() {
   };
 
   const processReceipt = async (fileUrl, fileName, fileType, batchId) => {
+    // Fetch learned rules and corrections
+    const feedbackData = await base44.entities.AIFeedback.list('-created_date', 50);
+    const correctionsData = await base44.entities.ReceiptCorrection.list('-created_date', 100);
+    
+    // Build learning context
+    let learningContext = '';
+    
+    if (feedbackData.length > 0) {
+      learningContext += '\n\nLEARNED RULES AND PATTERNS:\n';
+      feedbackData.forEach(f => {
+        if (f.rule_learned) {
+          learningContext += `- ${f.rule_learned}\n`;
+        }
+      });
+    }
+    
+    if (correctionsData.length > 0) {
+      learningContext += '\n\nPREVIOUS CORRECTIONS TO LEARN FROM:\n';
+      const correctionsByField = {};
+      correctionsData.forEach(c => {
+        if (!correctionsByField[c.field_name]) {
+          correctionsByField[c.field_name] = [];
+        }
+        correctionsByField[c.field_name].push({
+          from: c.original_value,
+          to: c.corrected_value,
+          reason: c.correction_reason
+        });
+      });
+      
+      Object.entries(correctionsByField).forEach(([field, corrections]) => {
+        learningContext += `\n${field}:\n`;
+        corrections.slice(0, 5).forEach(c => {
+          learningContext += `  • Originally extracted "${c.from}" but correct value was "${c.to}"`;
+          if (c.reason) learningContext += ` (${c.reason})`;
+          learningContext += '\n';
+        });
+      });
+    }
+    
     // Use AI to extract data from the receipt
     const extractionPrompt = `Analyze this receipt image/document and extract the following information:
     - vendor_name: The name of the vendor/store/company
@@ -46,7 +86,11 @@ export default function Upload() {
     - Spain: 21% standard
     - Italy: 22% standard
     
-    If VAT is not explicit and you identify the country, calculate: VAT = Total - (Total / (1 + VAT_rate))`;
+    If VAT is not explicit and you identify the country, calculate: VAT = Total - (Total / (1 + VAT_rate))
+
+    ${learningContext}
+
+    IMPORTANT: Apply the learned rules and corrections above to improve extraction accuracy. Pay special attention to patterns that were corrected before.`;
 
     const result = await base44.integrations.Core.InvokeLLM({
       prompt: extractionPrompt,
