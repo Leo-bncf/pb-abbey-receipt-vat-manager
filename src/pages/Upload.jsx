@@ -14,6 +14,7 @@ export default function Upload() {
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [processedFiles, setProcessedFiles] = useState([]);
   const [errors, setErrors] = useState([]);
+  const [elapsedTime, setElapsedTime] = useState(0);
   const navigate = useNavigate();
 
   const getFileType = (file) => {
@@ -160,6 +161,12 @@ export default function Upload() {
     setUploadProgress({ current: 0, total: files.length });
     setProcessedFiles([]);
     setErrors([]);
+    setElapsedTime(0);
+
+    const startTime = Date.now();
+    const timerInterval = setInterval(() => {
+      setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
 
     const batchId = `batch_${Date.now()}`;
     const results = [];
@@ -186,6 +193,7 @@ export default function Upload() {
       }
     }
 
+    clearInterval(timerInterval);
     setProcessedFiles(results);
     setErrors(errorList);
     setIsProcessing(false);
@@ -244,9 +252,12 @@ export default function Upload() {
             <h3 className="text-lg font-semibold text-slate-800 mb-2">
               Processing Receipts
             </h3>
-            <p className="text-slate-500 mb-6">
+            <p className="text-slate-500 mb-4">
               Extracting data from {uploadProgress.current} of {uploadProgress.total} files...
             </p>
+            <div className="text-2xl font-bold text-indigo-600 mb-6">
+              {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}
+            </div>
             <Progress 
               value={(uploadProgress.current / uploadProgress.total) * 100} 
               className="h-2"
@@ -271,8 +282,11 @@ export default function Upload() {
               <h3 className="text-xl font-semibold text-slate-800 text-center mb-2">
                 Processing Complete
               </h3>
-              <p className="text-slate-500 text-center mb-8">
+              <p className="text-slate-500 text-center mb-2">
                 Successfully processed {processedFiles.filter(f => f.success).length} of {processedFiles.length + errors.length} receipts
+              </p>
+              <p className="text-sm text-slate-400 text-center mb-8">
+                Completed in {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}
               </p>
 
               <div className="grid grid-cols-3 gap-4 mb-8">
