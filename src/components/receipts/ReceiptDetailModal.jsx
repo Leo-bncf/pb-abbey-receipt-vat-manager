@@ -35,25 +35,62 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
       const locationMatch = receipt.extraction_notes?.match(/\[Location: ([^\]]+)\]/);
       const location = locationMatch ? locationMatch[1] : 'the receipt';
 
-      const cropPrompt = `This image contains multiple receipts. Please generate a new image that shows ONLY the receipt located at: ${location}.
+      // Ask AI to identify bounding box coordinates
+      const cropPrompt = `Analyze this image with multiple receipts. Identify the bounding box for the receipt located at: ${location}.
 
-Receipt details to help identify it:
+Receipt details to identify:
 - Vendor: ${receipt.vendor_name}
 - Date: ${receipt.receipt_date}
 - Total: ${receipt.total_amount} ${receipt.currency}
 
-Crop the image to show just this receipt with some padding around it. Make sure the entire receipt is visible and clearly readable.`;
+Provide the bounding box as percentages of the image dimensions (0-100) with some padding:
+- x: left edge percentage
+- y: top edge percentage  
+- width: width percentage
+- height: height percentage`;
 
-      const result = await base44.integrations.Core.GenerateImage({
+      const result = await base44.integrations.Core.InvokeLLM({
         prompt: cropPrompt,
-        existing_image_urls: [receipt.file_url]
+        file_urls: [receipt.file_url],
+        response_json_schema: {
+          type: 'object',
+          properties: {
+            x: { type: 'number', description: 'Left position as percentage' },
+            y: { type: 'number', description: 'Top position as percentage' },
+            width: { type: 'number', description: 'Width as percentage' },
+            height: { type: 'number', description: 'Height as percentage' }
+          }
+        }
       });
 
-      setCroppedImageUrl(result.url);
+      // Create cropped image using canvas
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        const cropX = (result.x / 100) * img.width;
+        const cropY = (result.y / 100) * img.height;
+        const cropWidth = (result.width / 100) * img.width;
+        const cropHeight = (result.height / 100) * img.height;
+        
+        canvas.width = cropWidth;
+        canvas.height = cropHeight;
+        
+        ctx.drawImage(img, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+        
+        setCroppedImageUrl(canvas.toDataURL('image/jpeg', 0.95));
+        setIsLoadingCrop(false);
+      };
+      img.onerror = () => {
+        setCroppedImageUrl(receipt.file_url);
+        setIsLoadingCrop(false);
+      };
+      img.src = receipt.file_url;
     } catch (error) {
       console.error('Failed to crop receipt:', error);
       setCroppedImageUrl(receipt.file_url);
-    } finally {
       setIsLoadingCrop(false);
     }
   };
