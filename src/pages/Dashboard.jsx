@@ -95,38 +95,35 @@ export default function Dashboard() {
     },
   });
 
-  // Calculate stats
+  // Calculate stats - filtered by current folder
   const stats = useMemo(() => {
+    // Use receipts filtered by folder
+    const folderReceipts = currentFolderId !== null 
+      ? receipts.filter(r => r.folder_id === currentFolderId)
+      : receipts;
+
     const now = new Date();
-    const thisMonth = receipts.filter(r => {
+    const thisMonth = folderReceipts.filter(r => {
       if (!r.receipt_date) return false;
       const date = new Date(r.receipt_date);
       return date >= startOfMonth(now) && date <= endOfMonth(now);
     });
 
-    const lastMonth = receipts.filter(r => {
-      if (!r.receipt_date) return false;
-      const date = new Date(r.receipt_date);
-      const lastMonthStart = startOfMonth(subMonths(now, 1));
-      const lastMonthEnd = endOfMonth(subMonths(now, 1));
-      return date >= lastMonthStart && date <= lastMonthEnd;
-    });
-
-    const totalVAT = receipts.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
+    const totalVAT = folderReceipts.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
     const thisMonthVAT = thisMonth.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
-    const totalAmount = receipts.reduce((sum, r) => sum + (r.total_amount || 0), 0);
-    const needsReview = receipts.filter(r => r.needs_review && !r.is_reviewed).length;
-    const uniqueVendors = new Set(receipts.map(r => r.vendor_name)).size;
+    const totalAmount = folderReceipts.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    const needsReview = folderReceipts.filter(r => r.needs_review && !r.is_reviewed).length;
+    const uniqueVendors = new Set(folderReceipts.map(r => r.vendor_name)).size;
 
     return {
-      totalReceipts: receipts.length,
+      totalReceipts: folderReceipts.length,
       totalVAT,
       thisMonthVAT,
       totalAmount,
       needsReview,
       uniqueVendors
     };
-  }, [receipts]);
+  }, [receipts, currentFolderId]);
 
   // Filter receipts
   const filteredReceipts = useMemo(() => {
