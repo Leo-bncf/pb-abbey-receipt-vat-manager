@@ -66,23 +66,22 @@ REQUIRED FIELDS:
 - vat_rate: VAT rate percentage (determine from country and item type)
 - receipt_location: Where in image/PDF this receipt is located (e.g., "page 1 top-left", "page 2 center")
 
-UK VAT RULES (CRITICAL - FOLLOW IN ORDER):
-STEP 1: CHECK IF VAT IS PRINTED ON RECEIPT FIRST!
-- Look for "VAT", "Tax", "VAT @ 20%" lines on receipt
-- If VAT shown → USE EXACT AMOUNT, set vat_explicit=true
-- Example: ASDA shows "VAT £2.50" → use that exact amount
+🛒 ASDA-SPECIFIC RULES (CHECK FIRST!):
+IF vendor = "ASDA" (or variants):
+- Normalize to "ASDA", country = "United Kingdom"
+- ⚠️ ASDA has MIXED VAT (0% + 20%) in same receipt!
+- Look for "VAT @ 20.00%", "VAT @ 0.00%", "Rate 20%", "Rate 0%"
+- Extract BOTH VAT amounts, sum them
+- extraction_notes = "ASDA mixed VAT: 0%: £X, 20%: £Y"
+- Items: 0% = food staples | 20% = chocolate, sweets, drinks, alcohol, non-food
+- Validation: VAT should be < 25% of total
+- Never assume single rate for ASDA!
 
-STEP 2: If VAT not explicit, check for VAT number
-- NO VAT number → vat_rate=0, vat_amount=0
-- Has VAT number → Continue to STEP 3
-
-STEP 3: Determine category from items purchased:
-- VAT-EXEMPT (medical, education, insurance) → vat_rate=0
-- ZERO-RATED (basic groceries only) → vat_rate=0
-- REDUCED 5% (domestic fuel/electricity) → vat_rate=5, VAT = Total × (5/105)
-- STANDARD 20% (restaurants, alcohol, prepared foods, non-food items, services) → vat_rate=20, VAT = Total × (20/120)
-
-NOTE: Supermarkets like ASDA often have 20% VAT for standard-rated items!
+GENERAL UK VAT:
+1. Check for explicit VAT lines first → use exact amounts
+2. No VAT number → vat_rate=0
+3. Categories: Exempt (0%), Zero-rated (0%), Reduced (5%), Standard (20%)
+4. Calculate: Standard 20% = Total × (20/120)
 
 OTHER COUNTRIES:
 - Germany: 19% → VAT = Total × (19/119)
