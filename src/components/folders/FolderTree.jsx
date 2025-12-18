@@ -66,7 +66,7 @@ export default function FolderTree({
     return (
       <div key={folder.id}>
         <motion.div
-          className={`group w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+          className={`group w-full flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors ${
             isSelected ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50'
           }`}
           style={{ paddingLeft: `${level * 20 + 12}px` }}
@@ -88,11 +88,11 @@ export default function FolderTree({
             </button>
           )}
           {!hasSubfolders && <div className="w-5" />}
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${folderColors[folder.color || 'blue']}`}>
+          <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${folderColors[folder.color || 'blue']}`}>
             {isSelected ? (
-              <FolderOpen className="w-4 h-4" />
+              <FolderOpen className="w-5 h-5" />
             ) : (
-              <Folder className="w-4 h-4" />
+              <Folder className="w-5 h-5" />
             )}
           </div>
           {isEditing ? (
@@ -118,12 +118,12 @@ export default function FolderTree({
             <>
               <button
                 onClick={() => onSelectFolder(folder.id)}
-                className="flex-1 text-left text-sm font-medium text-slate-700 truncate"
+                className="flex-1 text-left text-sm font-medium text-slate-700"
               >
                 {folder.name}
               </button>
               {receiptCount > 0 && (
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs px-2">
                   {receiptCount}
                 </Badge>
               )}
