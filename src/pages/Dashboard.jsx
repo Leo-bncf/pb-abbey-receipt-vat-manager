@@ -334,6 +334,9 @@ export default function Dashboard() {
                 key={receipt.id}
                 receipt={receipt}
                 onView={setSelectedReceipt}
+                onDelete={async (id) => {
+                  await deleteReceiptsMutation.mutateAsync([id]);
+                }}
                 index={index}
               />
             ))}

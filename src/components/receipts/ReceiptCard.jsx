@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   FileText, Calendar, Building2, MapPin, Coins, 
-  Percent, AlertCircle, CheckCircle, Clock, Eye 
+  Percent, AlertCircle, CheckCircle, Clock, Eye, Trash2 
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ const statusConfig = {
   error: { color: 'bg-red-100 text-red-700', icon: AlertCircle, label: 'Error' }
 };
 
-export default function ReceiptCard({ receipt, onView, index = 0 }) {
+export default function ReceiptCard({ receipt, onView, onDelete, index = 0 }) {
   const status = statusConfig[receipt.status] || statusConfig.uploaded;
   const StatusIcon = status.icon;
 
@@ -49,10 +49,26 @@ export default function ReceiptCard({ receipt, onView, index = 0 }) {
               </p>
             </div>
           </div>
-          <Badge className={`${status.color} border-0 gap-1`}>
-            <StatusIcon className="w-3 h-3" />
-            {status.label}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={`${status.color} border-0 gap-1`}>
+              <StatusIcon className="w-3 h-3" />
+              {status.label}
+            </Badge>
+            {onDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (confirm('Delete this receipt?')) {
+                    onDelete(receipt.id);
+                  }
+                }}
+                className="p-1.5 hover:bg-red-50 rounded-lg transition-colors group"
+                title="Delete receipt"
+              >
+                <Trash2 className="w-4 h-4 text-slate-400 group-hover:text-red-600" />
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 mb-4">
