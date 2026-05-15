@@ -20,7 +20,7 @@ const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 
 export default function Reports() {
   const [dateRange, setDateRange] = useState('all');
-  const [exportFormat, setExportFormat] = useState('excel');
+  const [exportMonth, setExportMonth] = useState('');
 
   const { data: receipts = [], isLoading } = useQuery({
     queryKey: ['receipts'],
@@ -129,6 +129,21 @@ export default function Reports() {
     return Object.values(countryMap).sort((a, b) => b.vat - a.vat);
   }, [filteredReceipts]);
 
+  // Available months for export dropdown (derived from receipts)
+  const availableMonths = useMemo(() => {
+    const monthSet = new Set();
+    receipts.forEach(r => {
+      const dateStr = r.receipt_date || r.created_date;
+      if (dateStr) {
+        monthSet.add(format(new Date(dateStr), 'yyyy-MM'));
+      }
+    });
+    return Array.from(monthSet).sort().reverse().map(m => ({
+      value: m,
+      label: format(new Date(m + '-01'), 'MMMM yyyy')
+    }));
+  }, [receipts]);
+
   // Summary stats
   const summary = useMemo(() => ({
     totalReceipts: filteredReceipts.length,
@@ -141,20 +156,33 @@ export default function Reports() {
       : 0
   }), [filteredReceipts]);
 
-  // Generate Excel export
+  // Generate monthly export
+  const [isExporting, setIsExporting] = useState(false);
+
   const exportToExcel = async () => {
+    if (!exportMonth) return;
+    setIsExporting(true);
+
+    // Filter receipts for selected month
+    const [year, month] = exportMonth.split('-').map(Number);
+    const monthReceipts = receipts.filter(r => {
+      const dateStr = r.receipt_date || r.created_date;
+      if (!dateStr) return false;
+      const d = new Date(dateStr);
+      return d.getFullYear() === year && d.getMonth() + 1 === month;
+    });
+
+    const monthLabel = format(new Date(exportMonth + '-01'), 'MMMM yyyy');
+
     // Fetch EUR/GBP exchange rate
     let eurToGbp = 1;
     try {
-      const ratePrompt = `Go to https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/eurofxref-graph-gbp.en.html and extract today's EUR to GBP exchange rate. Return just the number.`;
       const rateResult = await base44.integrations.Core.InvokeLLM({
-        prompt: ratePrompt,
+        prompt: `What is today's EUR to GBP exchange rate? Return just the number.`,
         add_context_from_internet: true,
         response_json_schema: {
           type: 'object',
-          properties: {
-            rate: { type: 'number', description: 'EUR to GBP exchange rate' }
-          }
+          properties: { rate: { type: 'number' } }
         }
       });
       eurToGbp = rateResult.rate || 1;
@@ -162,84 +190,64 @@ export default function Reports() {
       console.error('Failed to fetch exchange rate:', e);
     }
 
-    // Create CSV content
-    let csvContent = "data:text/csv;charset=utf-8,";
-    
-    // Sheet 1: Summary
-    csvContent += "SUMMARY REPORT\n\n";
-    csvContent += "Metric,Value\n";
-    csvContent += `Total Receipts,${summary.totalReceipts}\n`;
-    csvContent += `Total Amount,£${summary.totalAmount.toFixed(2)}\n`;
-    csvContent += `Total VAT,£${summary.totalVAT.toFixed(2)}\n`;
-    csvContent += `Unique Vendors,${summary.uniqueVendors}\n`;
-    csvContent += `Countries,${summary.uniqueCountries}\n\n`;
-
-    // Monthly VAT
-    csvContent += "MONTHLY VAT BREAKDOWN\n\n";
-    csvContent += "Month,VAT Amount,Total Amount,Receipt Count\n";
-    monthlyData.forEach(row => {
-      csvContent += `${row.month},£${row.vat.toFixed(2)},£${row.total.toFixed(2)},${row.count}\n`;
-    });
-    csvContent += "\n";
+    // Compute summary for this month
+    const totalAmount = monthReceipts.reduce((s, r) => s + (r.total_amount || 0), 0);
+    const totalVAT = monthReceipts.reduce((s, r) => s + (r.vat_amount || 0), 0);
+    const uniqueVendors = new Set(monthReceipts.map(r => r.vendor_name)).size;
 
     // Vendor breakdown
-    csvContent += "VAT BY VENDOR\n\n";
-    csvContent += "Vendor,VAT Amount,Total Amount,Receipt Count\n";
-    vendorData.forEach(row => {
-      csvContent += `"${row.vendor}",£${row.vat.toFixed(2)},£${row.total.toFixed(2)},${row.count}\n`;
+    const vendorMap = {};
+    monthReceipts.forEach(r => {
+      const v = r.vendor_name || 'Unknown';
+      if (!vendorMap[v]) vendorMap[v] = { vat: 0, total: 0, count: 0 };
+      vendorMap[v].vat += r.vat_amount || 0;
+      vendorMap[v].total += r.total_amount || 0;
+      vendorMap[v].count += 1;
+    });
+    const vendorRows = Object.entries(vendorMap).sort((a, b) => b[1].total - a[1].total);
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += `VAT REPORT - ${monthLabel}\n\n`;
+    csvContent += "SUMMARY\n";
+    csvContent += "Metric,Value\n";
+    csvContent += `Month,${monthLabel}\n`;
+    csvContent += `Total Receipts,${monthReceipts.length}\n`;
+    csvContent += `Total Amount,£${totalAmount.toFixed(2)}\n`;
+    csvContent += `Total VAT,£${totalVAT.toFixed(2)}\n`;
+    csvContent += `Unique Vendors,${uniqueVendors}\n\n`;
+
+    csvContent += "VAT BY VENDOR\n";
+    csvContent += "Vendor,Total Amount,VAT Amount,Receipt Count\n";
+    vendorRows.forEach(([vendor, data]) => {
+      csvContent += `"${vendor}",£${data.total.toFixed(2)},£${data.vat.toFixed(2)},${data.count}\n`;
     });
     csvContent += "\n";
 
-    // Country breakdown
-    csvContent += "VAT BY COUNTRY\n\n";
-    csvContent += "Country,VAT Amount,Total Amount,Receipt Count\n";
-    countryData.forEach(row => {
-      csvContent += `${row.country},£${row.vat.toFixed(2)},£${row.total.toFixed(2)},${row.count}\n`;
-    });
-    csvContent += "\n";
-
-    // Detailed receipts
-    csvContent += "DETAILED RECEIPTS\n\n";
-    csvContent += "Date,Vendor,Country,Currency,Total,Total (GBP),VAT,VAT Rate,File,Batch\n";
-    filteredReceipts.forEach(r => {
-      const totalAmount = r.total_amount || 0;
-      const totalGbp = r.currency === 'EUR' ? totalAmount * eurToGbp : totalAmount;
-      
+    csvContent += "DETAILED RECEIPTS\n";
+    csvContent += "Date,Vendor,Country,Currency,Total,Total (GBP),VAT,VAT Rate,VAT Explicit,File\n";
+    monthReceipts.forEach(r => {
+      const total = r.total_amount || 0;
+      const totalGbp = r.currency === 'EUR' ? total * eurToGbp : total;
       csvContent += `${r.receipt_date || ''},`;
       csvContent += `"${r.vendor_name || ''}",`;
       csvContent += `${r.country || ''},`;
       csvContent += `${r.currency || ''},`;
-      csvContent += `${totalAmount.toFixed(2)},`;
+      csvContent += `${total.toFixed(2)},`;
       csvContent += `£${totalGbp.toFixed(2)},`;
-      csvContent += `${r.vat_amount || 0},`;
+      csvContent += `${(r.vat_amount || 0).toFixed(2)},`;
       csvContent += `${r.vat_rate || 0}%,`;
-      csvContent += `"${r.file_name || ''}",`;
-      csvContent += `${r.upload_batch || ''}\n`;
+      csvContent += `${r.vat_explicit ? 'Yes' : 'No'},`;
+      csvContent += `"${r.file_name || ''}"\n`;
     });
-    csvContent += "\n";
 
-    // Corrections
-    if (corrections.length > 0) {
-      csvContent += "CORRECTIONS HISTORY\n\n";
-      csvContent += "Receipt ID,Field,Original Value,Corrected Value,Corrected By,Date\n";
-      corrections.forEach(c => {
-        csvContent += `${c.receipt_id || ''},`;
-        csvContent += `${c.field_name || ''},`;
-        csvContent += `"${c.original_value || ''}",`;
-        csvContent += `"${c.corrected_value || ''}",`;
-        csvContent += `${c.corrected_by || ''},`;
-        csvContent += `${c.created_date ? format(new Date(c.created_date), 'dd/MM/yyyy') : ''}\n`;
-      });
-    }
-
-    // Download
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `vat_report_${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.setAttribute("download", `vat_report_${exportMonth}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setIsExporting(false);
   };
 
   const formatCurrency = (value) => `£${(value || 0).toFixed(2)}`;
@@ -258,7 +266,7 @@ export default function Reports() {
               <p className="text-slate-500">Generate and export VAT summaries</p>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center flex-wrap">
             <Select value={dateRange} onValueChange={setDateRange}>
               <SelectTrigger className="w-40 bg-white">
                 <SelectValue />
@@ -271,12 +279,26 @@ export default function Reports() {
                 <SelectItem value="all">All Time</SelectItem>
               </SelectContent>
             </Select>
+            <div className="flex gap-2 items-center border border-slate-200 bg-white rounded-lg px-3 py-1.5">
+              <Calendar className="w-4 h-4 text-slate-400" />
+              <Select value={exportMonth} onValueChange={setExportMonth}>
+                <SelectTrigger className="w-40 border-0 p-0 h-auto shadow-none focus:ring-0">
+                  <SelectValue placeholder="Select month..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableMonths.map(m => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button 
               onClick={exportToExcel}
-              className="bg-indigo-600 hover:bg-indigo-700 gap-2"
+              disabled={!exportMonth || isExporting}
+              className="bg-indigo-600 hover:bg-indigo-700 gap-2 disabled:opacity-50"
             >
               <Download className="w-4 h-4" />
-              Export CSV
+              {isExporting ? 'Exporting...' : 'Export Month'}
             </Button>
           </div>
         </div>
