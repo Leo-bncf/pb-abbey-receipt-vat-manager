@@ -206,40 +206,57 @@ export default function Reports() {
     });
     const vendorRows = Object.entries(vendorMap).sort((a, b) => b[1].total - a[1].total);
 
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += `VAT REPORT - ${monthLabel}\n\n`;
-    csvContent += "SUMMARY\n";
-    csvContent += "Metric,Value\n";
-    csvContent += `Month,${monthLabel}\n`;
-    csvContent += `Total Receipts,${monthReceipts.length}\n`;
-    csvContent += `Total Amount,£${totalAmount.toFixed(2)}\n`;
-    csvContent += `Total VAT,£${totalVAT.toFixed(2)}\n`;
-    csvContent += `Unique Vendors,${uniqueVendors}\n\n`;
+    const row = (cols) => cols.map(c => {
+      const val = c == null ? '' : String(c);
+      // Wrap in quotes if contains comma, quote, or newline
+      return val.includes(',') || val.includes('"') || val.includes('\n')
+        ? `"${val.replace(/"/g, '""')}"` : val;
+    }).join(',');
 
-    csvContent += "VAT BY VENDOR\n";
-    csvContent += "Vendor,Total Amount,VAT Amount,Receipt Count\n";
+    const lines = [];
+
+    // Sheet header
+    lines.push(row([`VAT Report - ${monthLabel}`]));
+    lines.push(row([]));
+
+    // Summary block
+    lines.push(row(['SUMMARY', '']));
+    lines.push(row(['Month', monthLabel]));
+    lines.push(row(['Total Receipts', monthReceipts.length]));
+    lines.push(row(['Total Amount (GBP)', totalAmount.toFixed(2)]));
+    lines.push(row(['Total VAT (GBP)', totalVAT.toFixed(2)]));
+    lines.push(row(['Unique Vendors', uniqueVendors]));
+    lines.push(row([]));
+
+    // VAT by vendor
+    lines.push(row(['VENDOR BREAKDOWN', '', '', '']));
+    lines.push(row(['Vendor', 'Total Amount', 'VAT Amount', 'Receipt Count']));
     vendorRows.forEach(([vendor, data]) => {
-      csvContent += `"${vendor}",£${data.total.toFixed(2)},£${data.vat.toFixed(2)},${data.count}\n`;
+      lines.push(row([vendor, data.total.toFixed(2), data.vat.toFixed(2), data.count]));
     });
-    csvContent += "\n";
+    lines.push(row([]));
 
-    csvContent += "DETAILED RECEIPTS\n";
-    csvContent += "Date,Vendor,Country,Currency,Total,Total (GBP),VAT,VAT Rate,VAT Explicit,File\n";
+    // Detailed receipts
+    lines.push(row(['DETAILED RECEIPTS', '', '', '', '', '', '', '', '', '']));
+    lines.push(row(['Date', 'Vendor', 'Country', 'Currency', 'Total', 'Total (GBP)', 'VAT', 'VAT Rate %', 'VAT Explicit', 'File Name']));
     monthReceipts.forEach(r => {
       const total = r.total_amount || 0;
-      const totalGbp = r.currency === 'EUR' ? total * eurToGbp : total;
-      csvContent += `${r.receipt_date || ''},`;
-      csvContent += `"${r.vendor_name || ''}",`;
-      csvContent += `${r.country || ''},`;
-      csvContent += `${r.currency || ''},`;
-      csvContent += `${total.toFixed(2)},`;
-      csvContent += `£${totalGbp.toFixed(2)},`;
-      csvContent += `${(r.vat_amount || 0).toFixed(2)},`;
-      csvContent += `${r.vat_rate || 0}%,`;
-      csvContent += `${r.vat_explicit ? 'Yes' : 'No'},`;
-      csvContent += `"${r.file_name || ''}"\n`;
+      const totalGbp = r.currency === 'EUR' ? (total * eurToGbp) : total;
+      lines.push(row([
+        r.receipt_date || '',
+        r.vendor_name || '',
+        r.country || '',
+        r.currency || '',
+        total.toFixed(2),
+        totalGbp.toFixed(2),
+        (r.vat_amount || 0).toFixed(2),
+        r.vat_rate || 0,
+        r.vat_explicit ? 'Yes' : 'No',
+        r.file_name || ''
+      ]));
     });
 
+    const csvContent = "data:text/csv;charset=utf-8," + lines.join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
