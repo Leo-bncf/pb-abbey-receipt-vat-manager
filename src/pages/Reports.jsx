@@ -15,6 +15,7 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO, getMonth, getYear } from 'date-fns';
+import * as XLSX from 'xlsx';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
@@ -206,64 +207,69 @@ export default function Reports() {
     });
     const vendorRows = Object.entries(vendorMap).sort((a, b) => b[1].total - a[1].total);
 
-    const row = (cols) => cols.map(c => {
-      const val = c == null ? '' : String(c);
-      // Wrap in quotes if contains comma, quote, or newline
-      return val.includes(',') || val.includes('"') || val.includes('\n')
-        ? `"${val.replace(/"/g, '""')}"` : val;
-    }).join(',');
+    // Round to 2 decimals but keep a real number so Excel can sum/sort it
+    const n2 = (v) => Math.round((v || 0) * 100) / 100;
+    const MONEY = '#,##0.00';
+    const setFormat = (ws, col, fromRow, count, z) => {
+      for (let i = 0; i < count; i++) {
+        const cell = ws[`${col}${fromRow + i}`];
+        if (cell) cell.z = z;
+      }
+    };
 
-    const lines = [];
+    const wb = XLSX.utils.book_new();
 
-    // Sheet header
-    lines.push(row([`VAT Report - ${monthLabel}`]));
-    lines.push(row([]));
+    // --- Summary sheet ---
+    const summaryWs = XLSX.utils.aoa_to_sheet([
+      ['VAT Report', monthLabel],
+      [],
+      ['Total Receipts', monthReceipts.length],
+      ['Total Amount (GBP)', n2(totalAmount)],
+      ['Total VAT (GBP)', n2(totalVAT)],
+      ['Unique Vendors', uniqueVendors],
+    ]);
+    summaryWs['!cols'] = [{ wch: 22 }, { wch: 18 }];
+    setFormat(summaryWs, 'B', 4, 2, MONEY); // Total Amount + Total VAT
+    XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
 
-    // Summary block
-    lines.push(row(['SUMMARY', '']));
-    lines.push(row(['Month', monthLabel]));
-    lines.push(row(['Total Receipts', monthReceipts.length]));
-    lines.push(row(['Total Amount (GBP)', totalAmount.toFixed(2)]));
-    lines.push(row(['Total VAT (GBP)', totalVAT.toFixed(2)]));
-    lines.push(row(['Unique Vendors', uniqueVendors]));
-    lines.push(row([]));
+    // --- Vendor breakdown sheet ---
+    const vendorWs = XLSX.utils.aoa_to_sheet([
+      ['Vendor', 'Total Amount', 'VAT Amount', 'Receipt Count'],
+      ...vendorRows.map(([vendor, data]) => [vendor, n2(data.total), n2(data.vat), data.count]),
+    ]);
+    vendorWs['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+    setFormat(vendorWs, 'B', 2, vendorRows.length, MONEY);
+    setFormat(vendorWs, 'C', 2, vendorRows.length, MONEY);
+    XLSX.utils.book_append_sheet(wb, vendorWs, 'Vendor Breakdown');
 
-    // VAT by vendor
-    lines.push(row(['VENDOR BREAKDOWN', '', '', '']));
-    lines.push(row(['Vendor', 'Total Amount', 'VAT Amount', 'Receipt Count']));
-    vendorRows.forEach(([vendor, data]) => {
-      lines.push(row([vendor, data.total.toFixed(2), data.vat.toFixed(2), data.count]));
-    });
-    lines.push(row([]));
+    // --- Detailed receipts sheet ---
+    const receiptsWs = XLSX.utils.aoa_to_sheet([
+      ['Date', 'Vendor', 'Country', 'Currency', 'Total', 'Total (GBP)', 'VAT', 'VAT Rate %', 'VAT Explicit', 'File Name'],
+      ...monthReceipts.map(r => {
+        const total = r.total_amount || 0;
+        const totalGbp = r.currency === 'EUR' ? (total * eurToGbp) : total;
+        return [
+          r.receipt_date || '',
+          r.vendor_name || '',
+          r.country || '',
+          r.currency || '',
+          n2(total),
+          n2(totalGbp),
+          n2(r.vat_amount || 0),
+          r.vat_rate || 0,
+          r.vat_explicit ? 'Yes' : 'No',
+          r.file_name || '',
+        ];
+      }),
+    ]);
+    receiptsWs['!cols'] = [
+      { wch: 12 }, { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 12 },
+      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 30 },
+    ];
+    ['E', 'F', 'G'].forEach(col => setFormat(receiptsWs, col, 2, monthReceipts.length, MONEY));
+    XLSX.utils.book_append_sheet(wb, receiptsWs, 'Receipts');
 
-    // Detailed receipts
-    lines.push(row(['DETAILED RECEIPTS', '', '', '', '', '', '', '', '', '']));
-    lines.push(row(['Date', 'Vendor', 'Country', 'Currency', 'Total', 'Total (GBP)', 'VAT', 'VAT Rate %', 'VAT Explicit', 'File Name']));
-    monthReceipts.forEach(r => {
-      const total = r.total_amount || 0;
-      const totalGbp = r.currency === 'EUR' ? (total * eurToGbp) : total;
-      lines.push(row([
-        r.receipt_date || '',
-        r.vendor_name || '',
-        r.country || '',
-        r.currency || '',
-        total.toFixed(2),
-        totalGbp.toFixed(2),
-        (r.vat_amount || 0).toFixed(2),
-        r.vat_rate || 0,
-        r.vat_explicit ? 'Yes' : 'No',
-        r.file_name || ''
-      ]));
-    });
-
-    const csvContent = "data:text/csv;charset=utf-8," + lines.join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `vat_report_${exportMonth}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    XLSX.writeFile(wb, `vat_report_${exportMonth}.xlsx`);
     setIsExporting(false);
   };
 
