@@ -221,7 +221,6 @@ export default function Reports() {
 
       const n2 = (v) => Math.round((v || 0) * 100) / 100;
       const MONEY = '#,##0.00';
-      const RATE_FMT = '0.0000';
       const setFormat = (ws, col, fromRow, count, z) => {
         for (let i = 0; i < count; i++) {
           const cell = ws[`${col}${fromRow + i}`];
@@ -234,77 +233,36 @@ export default function Reports() {
       const totalVatGbp = rows.reduce((s, x) => s + x.vatGbp, 0);
       const uniqueVendors = new Set(monthReceipts.map(r => r.vendor_name)).size;
 
-      // Vendor breakdown (GBP)
-      const vendorMap = {};
-      rows.forEach(x => {
-        const v = x.r.vendor_name || 'Unknown';
-        if (!vendorMap[v]) vendorMap[v] = { vat: 0, total: 0, count: 0 };
-        vendorMap[v].vat += x.vatGbp;
-        vendorMap[v].total += x.totalGbp;
-        vendorMap[v].count += 1;
-      });
-      const vendorRows = Object.entries(vendorMap).sort((a, b) => b[1].total - a[1].total);
-
       const wb = XLSX.utils.book_new();
+      const n = monthReceipts.length;
 
-      // --- Summary sheet ---
-      const summaryWs = XLSX.utils.aoa_to_sheet([
-        ['VAT Report', monthLabel],
+      // One sheet: a row per receipt (Name | Amount | VAT % | VAT amount),
+      // then a totals table. All amounts in GBP.
+      const ws = XLSX.utils.aoa_to_sheet([
+        ['Name', 'Amount (GBP)', 'VAT %', 'VAT (GBP)'],
+        ...rows.map(x => [
+          x.r.vendor_name || '',
+          n2(x.totalGbp),
+          x.r.vat_rate > 0 ? `${x.r.vat_rate}%` : 'none',
+          n2(x.vatGbp),
+        ]),
         [],
-        ['Total Receipts', monthReceipts.length],
+        ['TOTALS'],
+        ['Total Receipts', n],
         ['Total Amount (GBP)', n2(totalAmountGbp)],
         ['Total VAT (GBP)', n2(totalVatGbp)],
         ['Unique Vendors', uniqueVendors],
         [],
         ['GBP figures use ECB EUR→GBP reference rates at each receipt date.'],
       ]);
-      summaryWs['!cols'] = [{ wch: 24 }, { wch: 18 }];
-      setFormat(summaryWs, 'B', 4, 2, MONEY); // Total Amount + Total VAT
-      XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
-
-      // --- Vendor breakdown sheet ---
-      const vendorWs = XLSX.utils.aoa_to_sheet([
-        ['Vendor', 'Total (GBP)', 'VAT (GBP)', 'Receipt Count'],
-        ...vendorRows.map(([vendor, data]) => [vendor, n2(data.total), n2(data.vat), data.count]),
-      ]);
-      vendorWs['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
-      setFormat(vendorWs, 'B', 2, vendorRows.length, MONEY);
-      setFormat(vendorWs, 'C', 2, vendorRows.length, MONEY);
-      vendorWs['!autofilter'] = { ref: `A1:D${vendorRows.length + 1}` };
-      XLSX.utils.book_append_sheet(wb, vendorWs, 'Vendor Breakdown');
-
-      // --- Detailed receipts sheet ---
-      const n = monthReceipts.length;
-      const receiptsWs = XLSX.utils.aoa_to_sheet([
-        ['Date', 'Vendor', 'Country', 'Currency', 'Total', 'FX Rate (EUR→GBP)', 'Total (GBP)', 'VAT', 'VAT (GBP)', 'VAT Rate %', 'VAT Explicit', 'File Name'],
-        ...rows.map(x => [
-          x.r.receipt_date || '',
-          x.r.vendor_name || '',
-          x.r.country || '',
-          x.r.currency || '',
-          n2(x.total),
-          x.rate != null ? Math.round(x.rate * 10000) / 10000 : '',
-          n2(x.totalGbp),
-          n2(x.vat),
-          n2(x.vatGbp),
-          x.r.vat_rate || 0,
-          x.r.vat_explicit ? 'Yes' : 'No',
-          x.r.file_name || '',
-        ]),
-        [],
-        ['TOTAL', '', '', '', '', '', n2(totalAmountGbp), '', n2(totalVatGbp), '', '', ''],
-      ]);
-      receiptsWs['!cols'] = [
-        { wch: 12 }, { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 16 },
-        { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 30 },
-      ];
-      ['E', 'G', 'H', 'I'].forEach(col => setFormat(receiptsWs, col, 2, n, MONEY));
-      setFormat(receiptsWs, 'F', 2, n, RATE_FMT);
-      const totalsRow = n + 3; // header + n data rows + blank row + totals row
-      setFormat(receiptsWs, 'G', totalsRow, 1, MONEY);
-      setFormat(receiptsWs, 'I', totalsRow, 1, MONEY);
-      receiptsWs['!autofilter'] = { ref: `A1:L${n + 1}` };
-      XLSX.utils.book_append_sheet(wb, receiptsWs, 'Receipts');
+      ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 14 }];
+      // Money format on the receipt rows (Amount + VAT columns)
+      setFormat(ws, 'B', 2, n, MONEY);
+      setFormat(ws, 'D', 2, n, MONEY);
+      // Money format on the totals table (Total Amount + Total VAT values)
+      setFormat(ws, 'B', n + 5, 2, MONEY);
+      ws['!autofilter'] = { ref: `A1:D${n + 1}` };
+      XLSX.utils.book_append_sheet(wb, ws, monthLabel);
 
       XLSX.writeFile(wb, `vat_report_${exportMonth}.xlsx`);
     } catch (e) {
