@@ -3,18 +3,17 @@ import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { 
   Download, FileSpreadsheet, Calendar, Building2, 
-  MapPin, TrendingUp, Coins, Percent, Filter
+  MapPin, TrendingUp, Coins, Percent
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { base44 } from '@/api/base44Client';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
-import { format, startOfMonth, endOfMonth, subMonths, parseISO, getMonth, getYear } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import * as XLSX from 'xlsx';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
@@ -23,14 +22,9 @@ export default function Reports() {
   const [dateRange, setDateRange] = useState('all');
   const [exportMonth, setExportMonth] = useState('');
 
-  const { data: receipts = [], isLoading } = useQuery({
+  const { data: receipts = [] } = useQuery({
     queryKey: ['receipts'],
     queryFn: () => base44.entities.Receipt.list('-created_date'),
-  });
-
-  const { data: corrections = [] } = useQuery({
-    queryKey: ['corrections'],
-    queryFn: () => base44.entities.ReceiptCorrection.list('-created_date'),
   });
 
   // Filter receipts by date range
