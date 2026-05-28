@@ -3,9 +3,8 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  FileText, Upload, Coins, Percent, Building2, 
-  TrendingUp, AlertCircle, Download, Filter, 
-  Grid, List, Search, Calendar, Trash2, Folder
+  FileText, Upload, Coins, Percent, Building2, AlertCircle, Download, 
+  Grid, List, Search, Trash2, Folder
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +19,7 @@ import ReceiptDetailModal from '../components/receipts/ReceiptDetailModal';
 import FolderTree from '../components/folders/FolderTree';
 import FolderManager from '../components/folders/FolderManager';
 import MoveToFolderDialog from '../components/folders/MoveToFolderDialog';
-import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
+import { startOfMonth, endOfMonth, subMonths } from 'date-fns';
 
 export default function Dashboard() {
   const [viewMode, setViewMode] = useState('grid');

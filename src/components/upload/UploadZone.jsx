@@ -1,8 +1,7 @@
 import React, { useState, useCallback } from 'react';
-import { Upload, FileText, Image, X, Loader2, CheckCircle } from 'lucide-react';
+import { Upload, FileText, Image, X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 
 export default function UploadZone({ onFilesSelected, isProcessing }) {
   const [isDragOver, setIsDragOver] = useState(false);

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
-  Eye, AlertCircle, CheckCircle, Clock, 
+  Eye, 
   ChevronUp, ChevronDown 
 } from 'lucide-react';
 import { format } from 'date-fns';

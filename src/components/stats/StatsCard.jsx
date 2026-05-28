@@ -2,15 +2,6 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 export default function StatsCard({ title, value, subtitle, icon: Icon, color = 'indigo', index = 0 }) {
-  const colors = {
-    indigo: 'from-indigo-500 to-indigo-600',
-    emerald: 'from-emerald-500 to-emerald-600',
-    amber: 'from-amber-500 to-amber-600',
-    rose: 'from-rose-500 to-rose-600',
-    blue: 'from-blue-500 to-blue-600',
-    purple: 'from-purple-500 to-purple-600',
-  };
-
   const bgColors = {
     indigo: 'bg-indigo-50',
     emerald: 'bg-emerald-50',

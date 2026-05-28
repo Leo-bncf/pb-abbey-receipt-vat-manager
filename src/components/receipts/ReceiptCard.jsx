@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { 
-  FileText, Calendar, Building2, MapPin, Coins, 
+  FileText, Calendar, MapPin, Coins, 
   Percent, AlertCircle, CheckCircle, Clock, Eye, Trash2 
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';

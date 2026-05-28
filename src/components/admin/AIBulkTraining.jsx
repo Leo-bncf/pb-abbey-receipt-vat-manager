@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Loader2, CheckCircle, XCircle, Image as ImageIcon, ThumbsUp, ThumbsDown, Sparkles, AlertCircle } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, ThumbsUp, ThumbsDown, Sparkles, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';

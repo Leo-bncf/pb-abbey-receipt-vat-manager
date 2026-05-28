@@ -1,8 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Brain, CheckCircle, Filter, X, Search, Sparkles, 
-  AlertCircle, TrendingUp, ArrowUp, ArrowDown, Ban
+  Brain, CheckCircle, Filter, X, Search, 
+  AlertCircle, TrendingUp, ArrowDown, Ban
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

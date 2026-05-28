@@ -163,7 +163,7 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
 
                 {/* Extracted Fields */}
                 <div className="space-y-3">
-                  {fields.map((field, index) => (
+                  {fields.map((field) => (
                     <div 
                       key={field.label}
                       className={`flex items-center justify-between p-3 rounded-lg ${

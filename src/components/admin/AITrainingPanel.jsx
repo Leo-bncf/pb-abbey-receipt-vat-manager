@@ -2,13 +2,12 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   FileText, Check, X, ThumbsUp, ThumbsDown, 
-  Sparkles, AlertCircle, Building2, Calendar,
+  Sparkles, Building2, Calendar,
   MapPin, Coins, Percent
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { base44 } from '@/api/base44Client';
 
 export default function AITrainingPanel({ receipt, onFieldCorrection, onSendFeedback }) {
   const [corrections, setCorrections] = useState({});

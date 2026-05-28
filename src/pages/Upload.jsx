@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { v4 as uuidv4 } from 'uuid';
 import { FileText, ArrowRight, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -31,42 +30,7 @@ export default function Upload() {
     return ext;
   };
 
-  const detectMultipleReceipts = async (fileUrl) => {
-    const detectionPrompt = `Analyze this image/document carefully. Does it contain MULTIPLE separate receipts on the same page/image?
-    
-    Look for:
-    - Multiple store names/logos
-    - Multiple transaction dates
-    - Multiple "TOTAL" amounts
-    - Multiple receipt headers/footers
-    - Receipts positioned in different areas of the page
-    
-    If there are multiple receipts, describe the location of each one (e.g., "top-left", "top-right", "bottom-left", "bottom-right", "center").`;
-    
-    const result = await base44.integrations.Core.InvokeLLM({
-      prompt: detectionPrompt,
-      file_urls: [fileUrl],
-      response_json_schema: {
-        type: 'object',
-        properties: {
-          has_multiple_receipts: { type: 'boolean' },
-          receipt_count: { type: 'number' },
-          receipt_locations: { 
-            type: 'array', 
-            items: { type: 'string' },
-            description: 'Location description for each receipt'
-          }
-        }
-      }
-    });
-    
-    return result;
-  };
-
-  const processReceipt = async (fileUrl, fileName, fileType, batchId) => {
-    // Fetch ALL learned rules and corrections
-    const feedbackData = await base44.entities.AIFeedback.list('-created_date', 100);
-    const correctionsData = await base44.entities.ReceiptCorrection.list('-created_date', 200);
+  const processReceipt = async (fileUrl, fileName, fileType, batchId, feedbackData, correctionsData) => {
 
     // Build comprehensive learning context
     let learningContext = '\n\n========================================\n';
@@ -341,10 +305,22 @@ export default function Upload() {
         vatAmount = Math.round(vatAmount * 100) / 100;
       }
 
-      // Determine if needs review
-      const needsReview = (receipt.confidence_score || 0) < 70 || 
-                          !receipt.vendor_name || 
-                          !receipt.total_amount;
+      // Validate the extraction. Anything suspicious is flagged for admin
+      // review, which produces a correction that feeds back into training.
+      const issues = [];
+      const totalNum = receipt.total_amount || 0;
+      if ((receipt.confidence_score || 0) < 70) issues.push('low confidence');
+      if (!receipt.vendor_name) issues.push('missing vendor');
+      if (!receipt.total_amount) issues.push('missing total');
+      if (!receipt.receipt_date) issues.push('missing date');
+      if (totalNum < 0) issues.push('negative total');
+      if (vatAmount < 0) issues.push('negative VAT');
+      if (totalNum > 0 && vatAmount > totalNum) issues.push('VAT exceeds total');
+      // UK standard VAT is 20%; above ~25% of the total is almost always an error
+      if (receipt.currency !== 'EUR' && totalNum > 0 && vatAmount > totalNum * 0.25) {
+        issues.push('VAT over 25% of total');
+      }
+      const needsReview = issues.length > 0;
 
       const receiptSuffix = extractedReceipts.length > 1 ? ` [${i + 1}/${extractedReceipts.length}]` : '';
       
@@ -368,9 +344,10 @@ export default function Upload() {
         needs_review: needsReview,
         is_reviewed: false,
         upload_batch: batchId,
-        extraction_notes: (receipt.extraction_notes || '') + 
+        extraction_notes: (receipt.extraction_notes || '') +
           (receipt.receipt_location ? ` [Location: ${receipt.receipt_location}]` : '') +
-          (extractedReceipts.length > 1 ? ` [Part ${i + 1} of ${extractedReceipts.length} receipts from same image]` : '')
+          (extractedReceipts.length > 1 ? ` [Part ${i + 1} of ${extractedReceipts.length} receipts from same image]` : '') +
+          (issues.length > 0 ? ` [Review needed: ${issues.join(', ')}]` : '')
       });
     }
     
@@ -393,6 +370,16 @@ export default function Upload() {
     const results = [];
     const errorList = [];
 
+    // Load AI training data once per batch instead of re-fetching for every file
+    let feedbackData = [];
+    let correctionsData = [];
+    try {
+      feedbackData = await base44.entities.AIFeedback.list('-created_date', 100);
+      correctionsData = await base44.entities.ReceiptCorrection.list('-created_date', 200);
+    } catch (e) {
+      console.error('Failed to load AI training data:', e);
+    }
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       setUploadProgress({ current: i + 1, total: files.length });
@@ -402,7 +389,7 @@ export default function Upload() {
         const { file_url } = await base44.integrations.Core.UploadFile({ file });
         
         // Process with AI (may return multiple receipts from one image)
-        const receiptsData = await processReceipt(file_url, file.name, getFileType(file), batchId);
+        const receiptsData = await processReceipt(file_url, file.name, getFileType(file), batchId, feedbackData, correctionsData);
         
         // Save each receipt to database
         for (const receiptData of receiptsData) {

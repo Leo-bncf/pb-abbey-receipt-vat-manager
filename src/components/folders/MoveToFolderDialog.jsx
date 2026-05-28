@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Folder, FolderOpen } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 
 export default function MoveToFolderDialog({ 
   isOpen, 

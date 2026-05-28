@@ -2,9 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  Shield, FileText, AlertCircle, CheckCircle, 
-  Filter, Search, ChevronLeft, ChevronRight,
-  MessageSquare, Sparkles, TrendingUp
+  Shield, FileText, AlertCircle, CheckCircle, Search, ChevronLeft, ChevronRight, Sparkles, TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,15 +18,12 @@ import { format } from 'date-fns';
 
 export default function Admin() {
   const [selectedReceipt, setSelectedReceipt] = useState(null);
-  const [trainingReceipt, setTrainingReceipt] = useState(null);
   const [reviewFilter, setReviewFilter] = useState('needs_review');
-  const [trainingSearchQuery, setTrainingSearchQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('review');
-  const [chatMessages, setChatMessages] = useState([]);
   const queryClient = useQueryClient();
 
-  const { data: receipts = [], isLoading } = useQuery({
+  const { data: receipts = [] } = useQuery({
     queryKey: ['receipts'],
     queryFn: () => base44.entities.Receipt.list('-created_date'),
   });
@@ -69,31 +64,6 @@ export default function Admin() {
       queryClient.invalidateQueries({ queryKey: ['feedback'] });
     },
   });
-
-  const handleFieldCorrection = async (receiptId, fieldName, originalValue, correctedValue) => {
-    const user = await base44.auth.me();
-    
-    // Save correction
-    await createCorrectionMutation.mutateAsync({
-      receipt_id: receiptId,
-      field_name: fieldName,
-      original_value: String(originalValue || ''),
-      corrected_value: String(correctedValue || ''),
-      corrected_by: user.email
-    });
-
-    // Update receipt
-    const updates = { [fieldName]: correctedValue };
-    await updateReceiptMutation.mutateAsync({
-      id: receiptId,
-      data: updates
-    });
-  };
-
-  const handleSendTrainingFeedback = (message) => {
-    // Add message to chat so it gets sent through the AI chat component
-    setChatMessages(prev => [...prev, { role: 'user', content: message }]);
-  };
 
   // Stats
   const stats = useMemo(() => {
