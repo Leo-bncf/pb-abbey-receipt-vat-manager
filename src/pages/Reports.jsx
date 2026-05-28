@@ -164,113 +164,161 @@ export default function Reports() {
     if (!exportMonth) return;
     setIsExporting(true);
 
-    // Filter receipts for selected month
-    const [year, month] = exportMonth.split('-').map(Number);
-    const monthReceipts = receipts.filter(r => {
-      const dateStr = r.receipt_date || r.created_date;
-      if (!dateStr) return false;
-      const d = new Date(dateStr);
-      return d.getFullYear() === year && d.getMonth() + 1 === month;
-    });
-
-    const monthLabel = format(new Date(exportMonth + '-01'), 'MMMM yyyy');
-
-    // Fetch EUR/GBP exchange rate
-    let eurToGbp = 1;
     try {
-      const rateResult = await base44.integrations.Core.InvokeLLM({
-        prompt: `What is today's EUR to GBP exchange rate? Return just the number.`,
-        add_context_from_internet: true,
-        response_json_schema: {
-          type: 'object',
-          properties: { rate: { type: 'number' } }
-        }
+      // Filter receipts for selected month
+      const [year, month] = exportMonth.split('-').map(Number);
+      const monthReceipts = receipts.filter(r => {
+        const dateStr = r.receipt_date || r.created_date;
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        return d.getFullYear() === year && d.getMonth() + 1 === month;
       });
-      eurToGbp = rateResult.rate || 1;
-    } catch (e) {
-      console.error('Failed to fetch exchange rate:', e);
-    }
 
-    // Compute summary for this month
-    const totalAmount = monthReceipts.reduce((s, r) => s + (r.total_amount || 0), 0);
-    const totalVAT = monthReceipts.reduce((s, r) => s + (r.vat_amount || 0), 0);
-    const uniqueVendors = new Set(monthReceipts.map(r => r.vendor_name)).size;
-
-    // Vendor breakdown
-    const vendorMap = {};
-    monthReceipts.forEach(r => {
-      const v = r.vendor_name || 'Unknown';
-      if (!vendorMap[v]) vendorMap[v] = { vat: 0, total: 0, count: 0 };
-      vendorMap[v].vat += r.vat_amount || 0;
-      vendorMap[v].total += r.total_amount || 0;
-      vendorMap[v].count += 1;
-    });
-    const vendorRows = Object.entries(vendorMap).sort((a, b) => b[1].total - a[1].total);
-
-    // Round to 2 decimals but keep a real number so Excel can sum/sort it
-    const n2 = (v) => Math.round((v || 0) * 100) / 100;
-    const MONEY = '#,##0.00';
-    const setFormat = (ws, col, fromRow, count, z) => {
-      for (let i = 0; i < count; i++) {
-        const cell = ws[`${col}${fromRow + i}`];
-        if (cell) cell.z = z;
+      if (monthReceipts.length === 0) {
+        alert('No receipts found for the selected month.');
+        return;
       }
-    };
 
-    const wb = XLSX.utils.book_new();
+      const monthLabel = format(new Date(exportMonth + '-01'), 'MMMM yyyy');
 
-    // --- Summary sheet ---
-    const summaryWs = XLSX.utils.aoa_to_sheet([
-      ['VAT Report', monthLabel],
-      [],
-      ['Total Receipts', monthReceipts.length],
-      ['Total Amount (GBP)', n2(totalAmount)],
-      ['Total VAT (GBP)', n2(totalVAT)],
-      ['Unique Vendors', uniqueVendors],
-    ]);
-    summaryWs['!cols'] = [{ wch: 22 }, { wch: 18 }];
-    setFormat(summaryWs, 'B', 4, 2, MONEY); // Total Amount + Total VAT
-    XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+      // Fetch historical EUR->GBP daily rates for the month (ECB data via Frankfurter)
+      const monthStart = `${exportMonth}-01`;
+      const monthEnd = format(endOfMonth(new Date(monthStart)), 'yyyy-MM-dd');
+      let rateByDate = {};
+      let rateDates = [];
+      try {
+        const res = await fetch(`https://api.frankfurter.dev/v1/${monthStart}..${monthEnd}?base=EUR&symbols=GBP`);
+        const data = await res.json();
+        rateByDate = Object.fromEntries(
+          Object.entries(data.rates || {}).map(([d, v]) => [d, v.GBP])
+        );
+        rateDates = Object.keys(rateByDate).sort();
+      } catch (e) {
+        console.error('Failed to fetch exchange rates:', e);
+      }
 
-    // --- Vendor breakdown sheet ---
-    const vendorWs = XLSX.utils.aoa_to_sheet([
-      ['Vendor', 'Total Amount', 'VAT Amount', 'Receipt Count'],
-      ...vendorRows.map(([vendor, data]) => [vendor, n2(data.total), n2(data.vat), data.count]),
-    ]);
-    vendorWs['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
-    setFormat(vendorWs, 'B', 2, vendorRows.length, MONEY);
-    setFormat(vendorWs, 'C', 2, vendorRows.length, MONEY);
-    XLSX.utils.book_append_sheet(wb, vendorWs, 'Vendor Breakdown');
+      // EUR->GBP rate at or before a date (ECB publishes no weekend/holiday rates)
+      const rateForDate = (dateStr) => {
+        if (rateDates.length === 0) return null;
+        const key = (dateStr || '').slice(0, 10);
+        let chosen = rateDates[0];
+        for (const d of rateDates) {
+          if (d <= key) chosen = d; else break;
+        }
+        return rateByDate[chosen];
+      };
 
-    // --- Detailed receipts sheet ---
-    const receiptsWs = XLSX.utils.aoa_to_sheet([
-      ['Date', 'Vendor', 'Country', 'Currency', 'Total', 'Total (GBP)', 'VAT', 'VAT Rate %', 'VAT Explicit', 'File Name'],
-      ...monthReceipts.map(r => {
+      // Per-receipt figures, converted to GBP at each receipt's date.
+      // Single source of truth so every sheet stays consistent.
+      const rows = monthReceipts.map(r => {
         const total = r.total_amount || 0;
-        const totalGbp = r.currency === 'EUR' ? (total * eurToGbp) : total;
-        return [
-          r.receipt_date || '',
-          r.vendor_name || '',
-          r.country || '',
-          r.currency || '',
-          n2(total),
-          n2(totalGbp),
-          n2(r.vat_amount || 0),
-          r.vat_rate || 0,
-          r.vat_explicit ? 'Yes' : 'No',
-          r.file_name || '',
-        ];
-      }),
-    ]);
-    receiptsWs['!cols'] = [
-      { wch: 12 }, { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 12 },
-      { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 30 },
-    ];
-    ['E', 'F', 'G'].forEach(col => setFormat(receiptsWs, col, 2, monthReceipts.length, MONEY));
-    XLSX.utils.book_append_sheet(wb, receiptsWs, 'Receipts');
+        const vat = r.vat_amount || 0;
+        const rate = r.currency === 'EUR' ? rateForDate(r.receipt_date || r.created_date) : null;
+        const toGbp = (amount) => (rate != null ? amount * rate : amount);
+        return {
+          r,
+          total,
+          vat,
+          rate,
+          totalGbp: r.currency === 'EUR' ? toGbp(total) : total,
+          vatGbp: r.currency === 'EUR' ? toGbp(vat) : vat,
+        };
+      });
 
-    XLSX.writeFile(wb, `vat_report_${exportMonth}.xlsx`);
-    setIsExporting(false);
+      const n2 = (v) => Math.round((v || 0) * 100) / 100;
+      const MONEY = '#,##0.00';
+      const RATE_FMT = '0.0000';
+      const setFormat = (ws, col, fromRow, count, z) => {
+        for (let i = 0; i < count; i++) {
+          const cell = ws[`${col}${fromRow + i}`];
+          if (cell) cell.z = z;
+        }
+      };
+
+      // Summary totals (GBP)
+      const totalAmountGbp = rows.reduce((s, x) => s + x.totalGbp, 0);
+      const totalVatGbp = rows.reduce((s, x) => s + x.vatGbp, 0);
+      const uniqueVendors = new Set(monthReceipts.map(r => r.vendor_name)).size;
+
+      // Vendor breakdown (GBP)
+      const vendorMap = {};
+      rows.forEach(x => {
+        const v = x.r.vendor_name || 'Unknown';
+        if (!vendorMap[v]) vendorMap[v] = { vat: 0, total: 0, count: 0 };
+        vendorMap[v].vat += x.vatGbp;
+        vendorMap[v].total += x.totalGbp;
+        vendorMap[v].count += 1;
+      });
+      const vendorRows = Object.entries(vendorMap).sort((a, b) => b[1].total - a[1].total);
+
+      const wb = XLSX.utils.book_new();
+
+      // --- Summary sheet ---
+      const summaryWs = XLSX.utils.aoa_to_sheet([
+        ['VAT Report', monthLabel],
+        [],
+        ['Total Receipts', monthReceipts.length],
+        ['Total Amount (GBP)', n2(totalAmountGbp)],
+        ['Total VAT (GBP)', n2(totalVatGbp)],
+        ['Unique Vendors', uniqueVendors],
+        [],
+        ['GBP figures use ECB EUR→GBP reference rates at each receipt date.'],
+      ]);
+      summaryWs['!cols'] = [{ wch: 24 }, { wch: 18 }];
+      setFormat(summaryWs, 'B', 4, 2, MONEY); // Total Amount + Total VAT
+      XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
+
+      // --- Vendor breakdown sheet ---
+      const vendorWs = XLSX.utils.aoa_to_sheet([
+        ['Vendor', 'Total (GBP)', 'VAT (GBP)', 'Receipt Count'],
+        ...vendorRows.map(([vendor, data]) => [vendor, n2(data.total), n2(data.vat), data.count]),
+      ]);
+      vendorWs['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+      setFormat(vendorWs, 'B', 2, vendorRows.length, MONEY);
+      setFormat(vendorWs, 'C', 2, vendorRows.length, MONEY);
+      vendorWs['!autofilter'] = { ref: `A1:D${vendorRows.length + 1}` };
+      XLSX.utils.book_append_sheet(wb, vendorWs, 'Vendor Breakdown');
+
+      // --- Detailed receipts sheet ---
+      const n = monthReceipts.length;
+      const receiptsWs = XLSX.utils.aoa_to_sheet([
+        ['Date', 'Vendor', 'Country', 'Currency', 'Total', 'FX Rate (EUR→GBP)', 'Total (GBP)', 'VAT', 'VAT (GBP)', 'VAT Rate %', 'VAT Explicit', 'File Name'],
+        ...rows.map(x => [
+          x.r.receipt_date || '',
+          x.r.vendor_name || '',
+          x.r.country || '',
+          x.r.currency || '',
+          n2(x.total),
+          x.rate != null ? Math.round(x.rate * 10000) / 10000 : '',
+          n2(x.totalGbp),
+          n2(x.vat),
+          n2(x.vatGbp),
+          x.r.vat_rate || 0,
+          x.r.vat_explicit ? 'Yes' : 'No',
+          x.r.file_name || '',
+        ]),
+        [],
+        ['TOTAL', '', '', '', '', '', n2(totalAmountGbp), '', n2(totalVatGbp), '', '', ''],
+      ]);
+      receiptsWs['!cols'] = [
+        { wch: 12 }, { wch: 24 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 16 },
+        { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 30 },
+      ];
+      ['E', 'G', 'H', 'I'].forEach(col => setFormat(receiptsWs, col, 2, n, MONEY));
+      setFormat(receiptsWs, 'F', 2, n, RATE_FMT);
+      const totalsRow = n + 3; // header + n data rows + blank row + totals row
+      setFormat(receiptsWs, 'G', totalsRow, 1, MONEY);
+      setFormat(receiptsWs, 'I', totalsRow, 1, MONEY);
+      receiptsWs['!autofilter'] = { ref: `A1:L${n + 1}` };
+      XLSX.utils.book_append_sheet(wb, receiptsWs, 'Receipts');
+
+      XLSX.writeFile(wb, `vat_report_${exportMonth}.xlsx`);
+    } catch (e) {
+      console.error('Export failed:', e);
+      alert('Export failed. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const formatCurrency = (value) => `£${(value || 0).toFixed(2)}`;
