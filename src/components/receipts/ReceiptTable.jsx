@@ -124,7 +124,7 @@ export default function ReceiptTable({
                   </TableCell>
                   <TableCell className="text-slate-600">
                     {receipt.receipt_date 
-                      ? format(new Date(receipt.receipt_date), 'dd MMM yyyy')
+                      ? format(new Date(receipt.receipt_date), 'dd/MM/yyyy')
                       : '-'
                     }
                   </TableCell>

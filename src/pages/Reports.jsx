@@ -202,11 +202,14 @@ export default function Reports() {
         return rateByDate[chosen];
       };
 
-      // Drop exact-duplicate rows (same file/vendor/date/total/VAT). Re-uploading
-      // the same PDF created duplicate receipts that double-counted in the totals.
+      // Drop duplicate rows. Re-uploading the same PDF creates duplicate
+      // receipts that double-count in the totals. The AI can re-extract slightly
+      // different values (e.g. "ELECTRICFIX" vs "ElectricFix"), so we key on
+      // file_name — which includes the source doc + receipt slot like "[14/14]"
+      // and is stable across re-extractions.
       const seenKeys = new Set();
       const dedupedReceipts = monthReceipts.filter(r => {
-        const key = [r.file_name, r.vendor_name, r.receipt_date, r.total_amount, r.vat_amount].join('||');
+        const key = r.file_name || `${r.id}`;
         if (seenKeys.has(key)) return false;
         seenKeys.add(key);
         return true;
@@ -260,7 +263,10 @@ export default function Reports() {
       const ws = XLSX.utils.aoa_to_sheet([
         ['Date', 'Name', 'Amount (GBP)', 'VAT %', 'VAT (GBP)'],
         ...rows.map(x => [
-          (x.r.receipt_date || x.r.created_date || '').slice(0, 10),
+          (() => {
+            const d = x.r.receipt_date || x.r.created_date;
+            return d ? format(new Date(d), 'dd/MM/yyyy') : '';
+          })(),
           x.r.vendor_name || '',
           n2(x.totalGbp),
           vatRateLabel(x.r.vat_rate),

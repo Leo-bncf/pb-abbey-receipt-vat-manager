@@ -385,21 +385,33 @@ export default function Upload() {
   };
 
   const handleFilesSelected = async (files) => {
-    // Warn if any selected file was already uploaded, to avoid duplicates.
-    const alreadyUploaded = Array.from(files).filter(f =>
-      uploadedDocNames.has(baseDocName(f.name).toLowerCase())
-    );
-    if (alreadyUploaded.length > 0) {
+    // Skip any file already uploaded so the same document is never processed
+    // twice (the root cause of past duplicate receipts). A document only counts
+    // as "already uploaded" if its receipts currently exist, so deleting them
+    // and re-uploading still works.
+    const filesArr = Array.from(files);
+    const dupeFiles = filesArr.filter(f => uploadedDocNames.has(baseDocName(f.name).toLowerCase()));
+    let filesToProcess = filesArr.filter(f => !uploadedDocNames.has(baseDocName(f.name).toLowerCase()));
+
+    if (dupeFiles.length > 0) {
+      const list = dupeFiles.map(f => `• ${f.name}`).join('\n');
+      if (filesToProcess.length === 0) {
+        alert(`All ${dupeFiles.length} selected file(s) have already been uploaded — nothing to process:\n\n${list}`);
+        return;
+      }
       const proceed = confirm(
-        `${alreadyUploaded.length} file(s) appear to have already been uploaded:\n\n` +
-        `${alreadyUploaded.map(f => `• ${f.name}`).join('\n')}\n\n` +
-        `Upload them again anyway?`
+        `${dupeFiles.length} file(s) were already uploaded and will be SKIPPED:\n\n${list}\n\n` +
+        `Continue and process only the ${filesToProcess.length} new file(s)?`
       );
       if (!proceed) return;
     }
 
+    // Belt-and-suspenders: never create a receipt for a file_name that already
+    // exists in the database (guards against concurrent/repeat batches).
+    const existingFileNames = new Set(existingReceipts.map(r => r.file_name));
+
     setIsProcessing(true);
-    setUploadProgress({ current: 0, total: files.length });
+    setUploadProgress({ current: 0, total: filesToProcess.length });
     setProcessedFiles([]);
     setErrors([]);
     setElapsedTime(0);
@@ -423,20 +435,22 @@ export default function Upload() {
       console.error('Failed to load AI training data:', e);
     }
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      setUploadProgress({ current: i + 1, total: files.length });
+    for (let i = 0; i < filesToProcess.length; i++) {
+      const file = filesToProcess[i];
+      setUploadProgress({ current: i + 1, total: filesToProcess.length });
 
       try {
         // Upload file
         const { file_url } = await base44.integrations.Core.UploadFile({ file });
-        
+
         // Process with AI (may return multiple receipts from one image)
         const receiptsData = await processReceipt(file_url, file.name, getFileType(file), batchId, feedbackData, correctionsData);
-        
-        // Save each receipt to database
+
+        // Save each receipt to database, skipping any file_name already stored
         for (const receiptData of receiptsData) {
+          if (existingFileNames.has(receiptData.file_name)) continue;
           const savedReceipt = await base44.entities.Receipt.create(receiptData);
+          existingFileNames.add(receiptData.file_name);
           results.push({ ...savedReceipt, success: true });
         }
       } catch (error) {

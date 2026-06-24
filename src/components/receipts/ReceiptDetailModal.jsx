@@ -35,7 +35,7 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
 
   const fields = [
     { label: 'Vendor', value: receipt.vendor_name, icon: Building2 },
-    { label: 'Date', value: receipt.receipt_date ? format(new Date(receipt.receipt_date), 'dd MMMM yyyy') : '-', icon: Calendar },
+    { label: 'Date', value: receipt.receipt_date ? format(new Date(receipt.receipt_date), 'dd/MM/yyyy') : '-', icon: Calendar },
     { label: 'Country', value: receipt.country, icon: MapPin },
     { label: 'Currency', value: receipt.currency, icon: Coins },
     { label: 'Total Amount', value: formatCurrency(receipt.total_amount, receipt.currency), icon: Coins, highlight: true },

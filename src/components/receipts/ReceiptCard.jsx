@@ -76,7 +76,7 @@ export default function ReceiptCard({ receipt, onView, onDelete, index = 0 }) {
             <Calendar className="w-4 h-4 text-slate-400" />
             <span className="text-slate-600">
               {receipt.receipt_date 
-                ? format(new Date(receipt.receipt_date), 'dd MMM yyyy')
+                ? format(new Date(receipt.receipt_date), 'dd/MM/yyyy')
                 : '-'
               }
             </span>
