@@ -202,9 +202,23 @@ export default function Reports() {
         return rateByDate[chosen];
       };
 
+      // Drop exact-duplicate rows (same file/vendor/date/total/VAT). Re-uploading
+      // the same PDF created duplicate receipts that double-counted in the totals.
+      const seenKeys = new Set();
+      const dedupedReceipts = monthReceipts.filter(r => {
+        const key = [r.file_name, r.vendor_name, r.receipt_date, r.total_amount, r.vat_amount].join('||');
+        if (seenKeys.has(key)) return false;
+        seenKeys.add(key);
+        return true;
+      });
+
+      // Sort by receipt date, earliest to latest (ISO YYYY-MM-DD sorts lexically).
+      const dateKey = (r) => (r.receipt_date || r.created_date || '').slice(0, 10);
+      dedupedReceipts.sort((a, b) => dateKey(a).localeCompare(dateKey(b)));
+
       // Per-receipt figures, converted to GBP at each receipt's date.
       // Single source of truth so every sheet stays consistent.
-      const rows = monthReceipts.map(r => {
+      const rows = dedupedReceipts.map(r => {
         const total = r.total_amount || 0;
         const vat = r.vat_amount || 0;
         const rate = r.currency === 'EUR' ? rateForDate(r.receipt_date || r.created_date) : null;
@@ -228,22 +242,28 @@ export default function Reports() {
         }
       };
 
-      // Summary totals (GBP)
+      // Summary totals (GBP) — computed from the deduplicated rows.
       const totalAmountGbp = rows.reduce((s, x) => s + x.totalGbp, 0);
       const totalVatGbp = rows.reduce((s, x) => s + x.vatGbp, 0);
-      const uniqueVendors = new Set(monthReceipts.map(r => r.vendor_name)).size;
+      const uniqueVendors = new Set(dedupedReceipts.map(r => r.vendor_name)).size;
 
       const wb = XLSX.utils.book_new();
-      const n = monthReceipts.length;
+      const n = rows.length;
 
-      // One sheet: a row per receipt (Name | Amount | VAT % | VAT amount),
-      // then a totals table. All amounts in GBP.
+      // VAT % is the effective rate on the receipt. Mixed-rate baskets (e.g. a
+      // supermarket with zero-rated food + standard-rated goods) produce odd
+      // fractional rates, so round to a whole percent to keep the report tidy.
+      const vatRateLabel = (rate) => (rate > 0 ? `${Math.round(rate)}%` : 'none');
+
+      // One sheet: a row per receipt (Date | Name | Amount | VAT % | VAT amount),
+      // sorted earliest to latest, then a totals table. All amounts in GBP.
       const ws = XLSX.utils.aoa_to_sheet([
-        ['Name', 'Amount (GBP)', 'VAT %', 'VAT (GBP)'],
+        ['Date', 'Name', 'Amount (GBP)', 'VAT %', 'VAT (GBP)'],
         ...rows.map(x => [
+          (x.r.receipt_date || x.r.created_date || '').slice(0, 10),
           x.r.vendor_name || '',
           n2(x.totalGbp),
-          x.r.vat_rate > 0 ? `${x.r.vat_rate}%` : 'none',
+          vatRateLabel(x.r.vat_rate),
           n2(x.vatGbp),
         ]),
         [],
@@ -255,13 +275,13 @@ export default function Reports() {
         [],
         ['GBP figures use ECB EUR→GBP reference rates at each receipt date.'],
       ]);
-      ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 14 }];
+      ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 14 }];
       // Money format on the receipt rows (Amount + VAT columns)
-      setFormat(ws, 'B', 2, n, MONEY);
-      setFormat(ws, 'D', 2, n, MONEY);
+      setFormat(ws, 'C', 2, n, MONEY);
+      setFormat(ws, 'E', 2, n, MONEY);
       // Money format on the totals table (Total Amount + Total VAT values)
       setFormat(ws, 'B', n + 5, 2, MONEY);
-      ws['!autofilter'] = { ref: `A1:D${n + 1}` };
+      ws['!autofilter'] = { ref: `A1:E${n + 1}` };
       XLSX.utils.book_append_sheet(wb, ws, monthLabel);
 
       XLSX.writeFile(wb, `vat_report_${exportMonth}.xlsx`);
