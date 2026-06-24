@@ -385,29 +385,29 @@ export default function Upload() {
   };
 
   const handleFilesSelected = async (files) => {
-    // Skip any file already uploaded so the same document is never processed
-    // twice (the root cause of past duplicate receipts). A document only counts
-    // as "already uploaded" if its receipts currently exist, so deleting them
-    // and re-uploading still works.
+    // Detect files whose document was already uploaded (the root cause of past
+    // duplicate receipts). A document only counts as "already uploaded" if its
+    // receipts currently exist, so deleting them and re-uploading still works.
     const filesArr = Array.from(files);
     const dupeFiles = filesArr.filter(f => uploadedDocNames.has(baseDocName(f.name).toLowerCase()));
-    let filesToProcess = filesArr.filter(f => !uploadedDocNames.has(baseDocName(f.name).toLowerCase()));
+    const filesToProcess = filesArr;
 
+    // If duplicates are detected, warn the user and let them choose: continue
+    // (upload them anyway) or stop. Continuing bypasses the duplicate guard.
+    let forceUpload = false;
     if (dupeFiles.length > 0) {
       const list = dupeFiles.map(f => `• ${f.name}`).join('\n');
-      if (filesToProcess.length === 0) {
-        alert(`All ${dupeFiles.length} selected file(s) have already been uploaded — nothing to process:\n\n${list}`);
-        return;
-      }
       const proceed = confirm(
-        `${dupeFiles.length} file(s) were already uploaded and will be SKIPPED:\n\n${list}\n\n` +
-        `Continue and process only the ${filesToProcess.length} new file(s)?`
+        `⚠️ Duplicate detected\n\n` +
+        `The following ${dupeFiles.length} file(s) have already been uploaded:\n\n${list}\n\n` +
+        `Click OK to upload them anyway, or Cancel to stop.`
       );
-      if (!proceed) return;
+      if (!proceed) return; // Stop
+      forceUpload = true;   // Continue with upload (re-upload the duplicates)
     }
 
-    // Belt-and-suspenders: never create a receipt for a file_name that already
-    // exists in the database (guards against concurrent/repeat batches).
+    // Guard: don't recreate a receipt for a file_name already in the database,
+    // unless the user explicitly chose to re-upload the duplicates above.
     const existingFileNames = new Set(existingReceipts.map(r => r.file_name));
 
     setIsProcessing(true);
@@ -447,8 +447,9 @@ export default function Upload() {
         const receiptsData = await processReceipt(file_url, file.name, getFileType(file), batchId, feedbackData, correctionsData);
 
         // Save each receipt to database, skipping any file_name already stored
+        // (unless the user chose to re-upload the duplicates).
         for (const receiptData of receiptsData) {
-          if (existingFileNames.has(receiptData.file_name)) continue;
+          if (!forceUpload && existingFileNames.has(receiptData.file_name)) continue;
           const savedReceipt = await base44.entities.Receipt.create(receiptData);
           existingFileNames.add(receiptData.file_name);
           results.push({ ...savedReceipt, success: true });
