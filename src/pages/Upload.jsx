@@ -1,15 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { FileText, ArrowRight, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { FileText, ArrowRight, CheckCircle, Loader2, AlertCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Folder } from 'lucide-react';
+import { format } from 'date-fns';
 import UploadZone from '../components/upload/UploadZone';
 import { createPageUrl } from '@/utils';
+
+// A single source PDF/image becomes several receipts named "doc.pdf [2/5]".
+// Strip that suffix to recover the original document name.
+const baseDocName = (fileName) => (fileName || '').replace(/\s*\[\d+\/\d+\]\s*$/, '').trim();
 
 export default function Upload() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -19,11 +25,35 @@ export default function Upload() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [selectedFolderId, setSelectedFolderId] = useState(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: folders = [] } = useQuery({
     queryKey: ['folders'],
     queryFn: () => base44.entities.Folder.list('name'),
   });
+
+  const { data: existingReceipts = [] } = useQuery({
+    queryKey: ['receipts'],
+    queryFn: () => base44.entities.Receipt.list('-created_date'),
+  });
+
+  // History of documents already uploaded, grouped by original file name.
+  const uploadHistory = useMemo(() => {
+    const byDoc = {};
+    existingReceipts.forEach(r => {
+      const name = baseDocName(r.file_name);
+      if (!name) return;
+      if (!byDoc[name]) byDoc[name] = { name, count: 0, date: r.created_date };
+      byDoc[name].count += 1;
+      if (new Date(r.created_date) > new Date(byDoc[name].date)) byDoc[name].date = r.created_date;
+    });
+    return Object.values(byDoc).sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [existingReceipts]);
+
+  const uploadedDocNames = useMemo(
+    () => new Set(uploadHistory.map(d => d.name.toLowerCase())),
+    [uploadHistory]
+  );
 
   const getFileType = (file) => {
     const ext = file.name.split('.').pop().toLowerCase();
@@ -355,6 +385,19 @@ export default function Upload() {
   };
 
   const handleFilesSelected = async (files) => {
+    // Warn if any selected file was already uploaded, to avoid duplicates.
+    const alreadyUploaded = Array.from(files).filter(f =>
+      uploadedDocNames.has(baseDocName(f.name).toLowerCase())
+    );
+    if (alreadyUploaded.length > 0) {
+      const proceed = confirm(
+        `${alreadyUploaded.length} file(s) appear to have already been uploaded:\n\n` +
+        `${alreadyUploaded.map(f => `• ${f.name}`).join('\n')}\n\n` +
+        `Upload them again anyway?`
+      );
+      if (!proceed) return;
+    }
+
     setIsProcessing(true);
     setUploadProgress({ current: 0, total: files.length });
     setProcessedFiles([]);
@@ -406,6 +449,8 @@ export default function Upload() {
     setProcessedFiles(results);
     setErrors(errorList);
     setIsProcessing(false);
+    // Refresh the upload history so newly uploaded docs show up immediately.
+    queryClient.invalidateQueries({ queryKey: ['receipts'] });
   };
 
   const totalVAT = processedFiles
@@ -415,6 +460,42 @@ export default function Upload() {
   const totalAmount = processedFiles
     .filter(f => f.success)
     .reduce((sum, f) => sum + (f.total_amount || 0), 0);
+
+  const uploadHistorySection = uploadHistory.length > 0 && (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2 }}
+      className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-8 text-left"
+    >
+      <div className="px-6 py-4 border-b border-slate-200 flex items-center gap-2">
+        <Clock className="w-5 h-5 text-slate-400" />
+        <h3 className="font-semibold text-slate-800">Previously Uploaded Documents</h3>
+        <Badge variant="outline" className="ml-auto text-xs">{uploadHistory.length}</Badge>
+      </div>
+      <p className="px-6 pt-3 text-sm text-slate-500">
+        Check here before uploading to avoid processing the same document twice.
+      </p>
+      <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto mt-2">
+        {uploadHistory.map((doc) => (
+          <div key={doc.name} className="px-6 py-3 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+              <span className="text-sm text-slate-700 truncate" title={doc.name}>{doc.name}</span>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className="text-xs text-slate-400">
+                {doc.date ? format(new Date(doc.date), 'd MMM yyyy') : ''}
+              </span>
+              <Badge variant="outline" className="text-xs">
+                {doc.count} receipt{doc.count !== 1 ? 's' : ''}
+              </Badge>
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -470,10 +551,11 @@ export default function Upload() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <UploadZone 
+            <UploadZone
               onFilesSelected={handleFilesSelected}
               isProcessing={isProcessing}
             />
+            {uploadHistorySection}
           </motion.div>
         )}
 
@@ -629,6 +711,8 @@ export default function Upload() {
                 ))}
               </div>
             </div>
+
+            {uploadHistorySection}
           </motion.div>
         )}
       </div>

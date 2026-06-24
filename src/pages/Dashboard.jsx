@@ -227,6 +227,14 @@ export default function Dashboard() {
     await deleteReceiptsMutation.mutateAsync(allIds);
   };
 
+  const handleDeleteFolder = async () => {
+    if (currentFolderId === null) return;
+    const folderReceipts = receipts.filter(r => r.folder_id === currentFolderId);
+    if (folderReceipts.length === 0) return;
+    if (!confirm(`Delete all ${folderReceipts.length} receipt(s) in "${getCurrentFolderName()}"? This action cannot be undone.`)) return;
+    await deleteReceiptsMutation.mutateAsync(folderReceipts.map(r => r.id));
+  };
+
   const handleMoveToFolder = (folderId) => {
     moveReceiptsMutation.mutate({ 
       receiptIds: selectedIds, 
@@ -272,9 +280,20 @@ export default function Dashboard() {
                 </Button>
               </>
             )}
+            {currentFolderId !== null && stats.totalReceipts > 0 && (
+              <Button
+                variant="outline"
+                className="gap-2 text-red-600 hover:bg-red-50 border-red-200"
+                onClick={handleDeleteFolder}
+                disabled={deleteReceiptsMutation.isPending}
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Folder ({stats.totalReceipts})
+              </Button>
+            )}
             {receipts.length > 0 && (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="gap-2 text-red-600 hover:bg-red-50 border-red-200"
                 onClick={handleDeleteAll}
                 disabled={deleteReceiptsMutation.isPending}
