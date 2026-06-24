@@ -24,6 +24,21 @@ const baseDocName = (fileName) => (fileName || '').replace(/\s*\[\d+\/\d+\]\s*$/
 const contentKey = (r) =>
   [(r.vendor_name || '').toLowerCase().trim(), r.receipt_date || '', r.total_amount ?? '', r.vat_amount ?? ''].join('|');
 
+// Retry a flaky async op (upload / AI extraction) with linear backoff so a
+// single network blip doesn't abort a whole receipt in a long batch.
+const withRetry = async (fn, attempts = 3) => {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (i < attempts - 1) await new Promise((res) => setTimeout(res, 1000 * (i + 1)));
+    }
+  }
+  throw lastErr;
+};
+
 export default function Upload() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
@@ -452,11 +467,15 @@ export default function Upload() {
       setUploadProgress({ current: i + 1, total: filesToProcess.length });
 
       try {
-        // Upload file
-        const { file_url } = await base44.integrations.Core.UploadFile({ file });
+        // Upload + AI extraction retry transient failures (network/timeouts).
+        // Re-creating receipts is safe: the duplicate guard below skips any
+        // that already landed, so a retry never double-saves.
+        const { file_url } = await withRetry(() => base44.integrations.Core.UploadFile({ file }));
 
         // Process with AI (may return multiple receipts from one image)
-        const receiptsData = await processReceipt(file_url, file.name, getFileType(file), batchId, feedbackData, correctionsData);
+        const receiptsData = await withRetry(() =>
+          processReceipt(file_url, file.name, getFileType(file), batchId, feedbackData, correctionsData)
+        );
 
         // Save each receipt, skipping any that duplicate an existing one by
         // file name or by content (unless the user chose to re-upload).

@@ -143,8 +143,10 @@ export default function Dashboard() {
       );
     }
 
-    // Status filter
-    if (statusFilter !== 'all') {
+    // Status filter ('needs_review' is a flag, not a status value)
+    if (statusFilter === 'needs_review') {
+      filtered = filtered.filter(r => r.needs_review && !r.is_reviewed);
+    } else if (statusFilter !== 'all') {
       filtered = filtered.filter(r => r.status === statusFilter);
     }
 
@@ -417,6 +419,7 @@ export default function Dashboard() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="needs_review">Needs Review</SelectItem>
                   <SelectItem value="extracted">Extracted</SelectItem>
                   <SelectItem value="reviewed">Reviewed</SelectItem>
                   <SelectItem value="error">Error</SelectItem>

@@ -100,9 +100,11 @@ export default function ReceiptCard({ receipt, onView, onDelete, index = 0 }) {
         </div>
 
         {receipt.needs_review && !receipt.is_reviewed && (
-          <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg mb-4">
-            <AlertCircle className="w-4 h-4 text-amber-600" />
-            <span className="text-xs text-amber-700">Needs review</span>
+          <div className="flex items-start gap-2 p-2 bg-amber-50 rounded-lg mb-4">
+            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <span className="text-xs text-amber-700">
+              {receipt.extraction_notes?.match(/\[Review needed:\s*([^\]]+)\]/i)?.[1]?.trim() || 'Needs review'}
+            </span>
           </div>
         )}
 
