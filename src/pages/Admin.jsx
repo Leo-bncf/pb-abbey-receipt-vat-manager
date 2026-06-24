@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  Shield, FileText, AlertCircle, CheckCircle, Search, ChevronLeft, ChevronRight, Sparkles, TrendingUp, Copy
+  Shield, FileText, AlertCircle, CheckCircle, Search, ChevronLeft, ChevronRight, TrendingUp, Copy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,8 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { base44 } from '@/api/base44Client';
 import ReceiptReviewPanel from '../components/admin/ReceiptReviewPanel';
-import AIBulkTraining from '../components/admin/AIBulkTraining';
-import AILearningTab from '../components/admin/AILearningTab';
 import DuplicatesTab from '../components/admin/DuplicatesTab';
 import StatsCard from '../components/stats/StatsCard';
 import { format } from 'date-fns';
@@ -34,11 +32,6 @@ export default function Admin() {
     queryFn: () => base44.entities.ReceiptCorrection.list('-created_date'),
   });
 
-  const { data: feedbackList = [] } = useQuery({
-    queryKey: ['feedback'],
-    queryFn: () => base44.entities.AIFeedback.list('-created_date'),
-  });
-
   const updateReceiptMutation = useMutation({
     mutationFn: async ({ id, data }) => {
       return base44.entities.Receipt.update(id, data);
@@ -57,27 +50,17 @@ export default function Admin() {
     },
   });
 
-  const updateFeedbackMutation = useMutation({
-    mutationFn: async ({ id, data }) => {
-      return base44.entities.AIFeedback.update(id, data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['feedback'] });
-    },
-  });
-
   // Stats
   const stats = useMemo(() => {
     const needsReview = receipts.filter(r => r.needs_review && !r.is_reviewed).length;
     const reviewed = receipts.filter(r => r.is_reviewed).length;
-    const avgConfidence = receipts.length > 0 
+    const avgConfidence = receipts.length > 0
       ? Math.round(receipts.reduce((sum, r) => sum + (r.confidence_score || 0), 0) / receipts.length)
       : 0;
     const totalCorrections = corrections.length;
-    const rulesLearned = feedbackList.filter(f => f.rule_learned).length;
 
-    return { needsReview, reviewed, avgConfidence, totalCorrections, rulesLearned };
-  }, [receipts, corrections, feedbackList]);
+    return { needsReview, reviewed, avgConfidence, totalCorrections };
+  }, [receipts, corrections]);
 
   // Filtered receipts
   const filteredReceipts = useMemo(() => {
@@ -156,7 +139,7 @@ export default function Admin() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <StatsCard
             title="Needs Review"
             value={stats.needsReview}
@@ -185,13 +168,6 @@ export default function Admin() {
             color="purple"
             index={3}
           />
-          <StatsCard
-            title="Rules Learned"
-            value={stats.rulesLearned}
-            icon={Sparkles}
-            color="indigo"
-            index={4}
-          />
         </div>
 
         {/* Tabs */}
@@ -200,14 +176,6 @@ export default function Admin() {
             <TabsTrigger value="review" className="gap-2">
               <FileText className="w-4 h-4" />
               Review Receipts
-            </TabsTrigger>
-            <TabsTrigger value="training" className="gap-2">
-              <Sparkles className="w-4 h-4" />
-              AI Bulk Training
-            </TabsTrigger>
-            <TabsTrigger value="learning" className="gap-2">
-              <Sparkles className="w-4 h-4" />
-              AI Learning
             </TabsTrigger>
             <TabsTrigger value="duplicates" className="gap-2">
               <Copy className="w-4 h-4" />
@@ -354,24 +322,6 @@ export default function Admin() {
               </div>
             </div>
           </TabsContent>
-
-          {/* AI Bulk Training Tab */}
-          <TabsContent value="training">
-            <div className="h-[calc(100vh-300px)]">
-              <AIBulkTraining />
-            </div>
-          </TabsContent>
-
-          {/* AI Learning Tab */}
-          <TabsContent value="learning">
-            <AILearningTab
-              feedbackList={feedbackList}
-              corrections={corrections}
-              onUpdateFeedback={(id, data) => updateFeedbackMutation.mutate({ id, data })}
-            />
-          </TabsContent>
-
-
 
           {/* Duplicates Tab */}
           <TabsContent value="duplicates">
