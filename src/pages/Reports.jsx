@@ -202,16 +202,24 @@ export default function Reports() {
         return rateByDate[chosen];
       };
 
-      // Drop duplicate rows. Re-uploading the same PDF creates duplicate
-      // receipts that double-count in the totals. The AI can re-extract slightly
-      // different values (e.g. "ELECTRICFIX" vs "ElectricFix"), so we key on
-      // file_name — which includes the source doc + receipt slot like "[14/14]"
-      // and is stable across re-extractions.
-      const seenKeys = new Set();
+      // Drop duplicate rows so totals aren't double-counted. Two sources of
+      // duplicates: (1) re-uploading the same document (same file_name), and
+      // (2) the same receipt appearing in two differently-named documents
+      // (e.g. overlapping "Part 2"/"Part 3" PDFs) — caught by a content key of
+      // vendor + date + total + VAT.
+      const seenFileNames = new Set();
+      const seenContentKeys = new Set();
       const dedupedReceipts = monthReceipts.filter(r => {
-        const key = r.file_name || `${r.id}`;
-        if (seenKeys.has(key)) return false;
-        seenKeys.add(key);
+        const fileKey = r.file_name || `id:${r.id}`;
+        const cKey = [
+          (r.vendor_name || '').toLowerCase().trim(),
+          r.receipt_date || '',
+          r.total_amount ?? '',
+          r.vat_amount ?? '',
+        ].join('|');
+        if (seenFileNames.has(fileKey) || seenContentKeys.has(cKey)) return false;
+        seenFileNames.add(fileKey);
+        seenContentKeys.add(cKey);
         return true;
       });
 

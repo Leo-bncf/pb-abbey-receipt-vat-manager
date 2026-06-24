@@ -17,11 +17,19 @@ import { createPageUrl } from '@/utils';
 // Strip that suffix to recover the original document name.
 const baseDocName = (fileName) => (fileName || '').replace(/\s*\[\d+\/\d+\]\s*$/, '').trim();
 
+// Identifies a receipt by its content (not its file name). Two differently
+// named PDFs that contain the same receipt produce the same key, so this
+// catches duplicates that a file-name check can't (e.g. overlapping "Part 2"
+// and "Part 3" documents).
+const contentKey = (r) =>
+  [(r.vendor_name || '').toLowerCase().trim(), r.receipt_date || '', r.total_amount ?? '', r.vat_amount ?? ''].join('|');
+
 export default function Upload() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [processedFiles, setProcessedFiles] = useState([]);
   const [errors, setErrors] = useState([]);
+  const [skipped, setSkipped] = useState([]);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [selectedFolderId, setSelectedFolderId] = useState(null);
   const navigate = useNavigate();
@@ -406,14 +414,18 @@ export default function Upload() {
       forceUpload = true;   // Continue with upload (re-upload the duplicates)
     }
 
-    // Guard: don't recreate a receipt for a file_name already in the database,
-    // unless the user explicitly chose to re-upload the duplicates above.
+    // Guards against duplicates (unless the user chose to re-upload above):
+    //  - by file_name: the exact same document re-uploaded
+    //  - by content:   the same receipt arriving in a differently-named doc
     const existingFileNames = new Set(existingReceipts.map(r => r.file_name));
+    const existingContentKeys = new Set(existingReceipts.map(contentKey));
+    const skippedDuplicates = [];
 
     setIsProcessing(true);
     setUploadProgress({ current: 0, total: filesToProcess.length });
     setProcessedFiles([]);
     setErrors([]);
+    setSkipped([]);
     setElapsedTime(0);
 
     const startTime = Date.now();
@@ -446,12 +458,22 @@ export default function Upload() {
         // Process with AI (may return multiple receipts from one image)
         const receiptsData = await processReceipt(file_url, file.name, getFileType(file), batchId, feedbackData, correctionsData);
 
-        // Save each receipt to database, skipping any file_name already stored
-        // (unless the user chose to re-upload the duplicates).
+        // Save each receipt, skipping any that duplicate an existing one by
+        // file name or by content (unless the user chose to re-upload).
         for (const receiptData of receiptsData) {
-          if (!forceUpload && existingFileNames.has(receiptData.file_name)) continue;
+          const cKey = contentKey(receiptData);
+          if (!forceUpload && (existingFileNames.has(receiptData.file_name) || existingContentKeys.has(cKey))) {
+            skippedDuplicates.push({
+              file_name: receiptData.file_name,
+              vendor_name: receiptData.vendor_name,
+              receipt_date: receiptData.receipt_date,
+              total_amount: receiptData.total_amount,
+            });
+            continue;
+          }
           const savedReceipt = await base44.entities.Receipt.create(receiptData);
           existingFileNames.add(receiptData.file_name);
+          existingContentKeys.add(cKey);
           results.push({ ...savedReceipt, success: true });
         }
       } catch (error) {
@@ -463,6 +485,7 @@ export default function Upload() {
     clearInterval(timerInterval);
     setProcessedFiles(results);
     setErrors(errorList);
+    setSkipped(skippedDuplicates);
     setIsProcessing(false);
     // Refresh the upload history so newly uploaded docs show up immediately.
     queryClient.invalidateQueries({ queryKey: ['receipts'] });
@@ -618,6 +641,7 @@ export default function Upload() {
               <p className="text-slate-500 text-center mb-2">
                 Successfully processed {processedFiles.filter(f => f.success).length} receipt{processedFiles.filter(f => f.success).length !== 1 ? 's' : ''}
                 {errors.length > 0 ? ` (${errors.length} failed)` : ''}
+                {skipped.length > 0 ? ` (${skipped.length} duplicate${skipped.length !== 1 ? 's' : ''} skipped)` : ''}
               </p>
               <p className="text-sm text-slate-400 text-center mb-8">
                 Completed in {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}
@@ -660,12 +684,32 @@ export default function Upload() {
                 </div>
               )}
 
+              {skipped.length > 0 && (
+                <div className="mb-6 p-4 bg-amber-50 rounded-xl">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle className="w-5 h-5 text-amber-600" />
+                    <span className="font-medium text-amber-800">
+                      {skipped.length} duplicate receipt(s) skipped — already in the system
+                    </span>
+                  </div>
+                  <ul className="text-sm text-amber-700 space-y-1">
+                    {skipped.map((s, i) => (
+                      <li key={i}>
+                        {s.vendor_name || 'Unknown'} · {s.receipt_date || 'no date'} · £{(s.total_amount || 0).toFixed(2)}
+                        <span className="text-amber-500"> ({s.file_name})</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               <div className="flex gap-4 justify-center">
                 <Button
                   variant="outline"
                   onClick={() => {
                     setProcessedFiles([]);
                     setErrors([]);
+                    setSkipped([]);
                   }}
                 >
                   Upload More
