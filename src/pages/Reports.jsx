@@ -13,7 +13,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, startOfMonth, subMonths } from 'date-fns';
 import * as XLSX from 'xlsx';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
@@ -21,10 +21,18 @@ const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 export default function Reports() {
   const [dateRange, setDateRange] = useState('all');
   const [exportMonth, setExportMonth] = useState('');
+  const [exportScope, setExportScope] = useState('month'); // 'month' | 'year' | 'all'
+  const [exportYear, setExportYear] = useState('');
+  const [exportFolderId, setExportFolderId] = useState('all');
 
   const { data: receipts = [] } = useQuery({
     queryKey: ['receipts'],
     queryFn: () => base44.entities.Receipt.list('-created_date'),
+  });
+
+  const { data: folders = [] } = useQuery({
+    queryKey: ['folders'],
+    queryFn: () => base44.entities.Folder.list('name'),
   });
 
   // Filter receipts by date range
@@ -139,6 +147,16 @@ export default function Reports() {
     }));
   }, [receipts]);
 
+  // Available years for export dropdown (derived from receipts)
+  const availableYears = useMemo(() => {
+    const yearSet = new Set();
+    receipts.forEach(r => {
+      const dateStr = r.receipt_date || r.created_date;
+      if (dateStr) yearSet.add(format(new Date(dateStr), 'yyyy'));
+    });
+    return Array.from(yearSet).sort().reverse();
+  }, [receipts]);
+
   // Summary stats
   const summary = useMemo(() => ({
     totalReceipts: filteredReceipts.length,
@@ -151,44 +169,78 @@ export default function Reports() {
       : 0
   }), [filteredReceipts]);
 
-  // Generate monthly export
+  // Default the year picker once receipts load.
+  React.useEffect(() => {
+    if (!exportYear && availableYears.length > 0) setExportYear(availableYears[0]);
+  }, [availableYears, exportYear]);
+
+  // Receipts for the current export scope (date range + folder).
+  const getExportSet = () => {
+    let set = receipts;
+    if (exportFolderId !== 'all') set = set.filter(r => (r.folder_id || '') === exportFolderId);
+    return set.filter(r => {
+      if (exportScope === 'all') return true;
+      const d = (r.receipt_date || r.created_date || '').slice(0, 10);
+      if (!d) return false;
+      if (exportScope === 'month') return d.slice(0, 7) === exportMonth;
+      if (exportScope === 'year') return d.slice(0, 4) === String(exportYear);
+      return true;
+    });
+  };
+
+  const folderName = (id) => folders.find(f => f.id === id)?.name || 'Folder';
+
+  const scopeLabel = () => {
+    let range;
+    if (exportScope === 'month') range = exportMonth ? format(new Date(exportMonth + '-01'), 'MMMM yyyy') : 'Month';
+    else if (exportScope === 'year') range = String(exportYear);
+    else range = 'All time';
+    return exportFolderId === 'all' ? range : `${range} – ${folderName(exportFolderId)}`;
+  };
+
+  const scopeFileTag = () => {
+    let t = exportScope === 'month' ? exportMonth : exportScope === 'year' ? String(exportYear) : 'all';
+    if (exportFolderId !== 'all') t += '_' + folderName(exportFolderId).replace(/[^a-z0-9]+/gi, '_').toLowerCase();
+    return t;
+  };
+
   const [isExporting, setIsExporting] = useState(false);
 
-  const exportToExcel = async () => {
-    if (!exportMonth) return;
+  const runExport = async (fmt) => {
+    if (exportScope === 'month' && !exportMonth) return;
+    if (exportScope === 'year' && !exportYear) return;
     setIsExporting(true);
 
     try {
-      // Filter receipts for selected month
-      const [year, month] = exportMonth.split('-').map(Number);
-      const monthReceipts = receipts.filter(r => {
-        const dateStr = r.receipt_date || r.created_date;
-        if (!dateStr) return false;
-        const d = new Date(dateStr);
-        return d.getFullYear() === year && d.getMonth() + 1 === month;
-      });
+      const monthReceipts = getExportSet();
 
       if (monthReceipts.length === 0) {
-        alert('No receipts found for the selected month.');
+        alert('No receipts found for the selected range and folder.');
         return;
       }
 
-      const monthLabel = format(new Date(exportMonth + '-01'), 'MMMM yyyy');
+      const monthLabel = scopeLabel();
 
-      // Fetch historical EUR->GBP daily rates for the month (ECB data via Frankfurter)
-      const monthStart = `${exportMonth}-01`;
-      const monthEnd = format(endOfMonth(new Date(monthStart)), 'yyyy-MM-dd');
+      // Fetch historical EUR->GBP daily rates spanning the receipts (ECB via Frankfurter)
+      const spanDates = monthReceipts
+        .map(r => (r.receipt_date || r.created_date || '').slice(0, 10))
+        .filter(Boolean)
+        .sort();
+      const monthStart = spanDates[0];
+      const monthEnd = spanDates[spanDates.length - 1];
       let rateByDate = {};
       let rateDates = [];
-      try {
-        const res = await fetch(`https://api.frankfurter.dev/v1/${monthStart}..${monthEnd}?base=EUR&symbols=GBP`);
-        const data = await res.json();
-        rateByDate = Object.fromEntries(
-          Object.entries(data.rates || {}).map(([d, v]) => [d, v.GBP])
-        );
-        rateDates = Object.keys(rateByDate).sort();
-      } catch (e) {
-        console.error('Failed to fetch exchange rates:', e);
+      if (monthStart && monthEnd) {
+        try {
+          const res = await fetch(`https://api.frankfurter.dev/v1/${monthStart}..${monthEnd}?base=EUR&symbols=GBP`);
+          const data = await res.json();
+          rateByDate = Object.fromEntries(
+            Object.entries(data.rates || {}).map(([d, v]) => [d, v.GBP])
+          );
+          rateDates = Object.keys(rateByDate).sort();
+        } catch (e) {
+          console.error('Failed to fetch exchange rates:', e);
+        }
       }
 
       // EUR->GBP rate at or before a date (ECB publishes no weekend/holiday rates)
@@ -258,7 +310,6 @@ export default function Reports() {
       const totalVatGbp = rows.reduce((s, x) => s + x.vatGbp, 0);
       const uniqueVendors = new Set(dedupedReceipts.map(r => r.vendor_name)).size;
 
-      const wb = XLSX.utils.book_new();
       const n = rows.length;
 
       // VAT % is the effective rate on the receipt. Mixed-rate baskets (e.g. a
@@ -284,19 +335,57 @@ export default function Reports() {
         b.vat += x.vatGbp;
       });
 
-      // Build the sheet as rows, tracking positions so number formats line up.
-      const aoa = [
-        ['Date', 'Name', 'Amount (GBP)', 'VAT %', 'VAT (GBP)'],
-        ...rows.map(x => [
-          (() => {
-            const d = x.r.receipt_date || x.r.created_date;
-            return d ? format(new Date(d), 'dd/MM/yyyy') : '';
-          })(),
+      // One array per receipt — shared by both the Excel and CSV outputs.
+      const receiptRows = rows.map(x => {
+        const d = x.r.receipt_date || x.r.created_date;
+        return [
+          d ? format(new Date(d), 'dd/MM/yyyy') : '',
           x.r.vendor_name || '',
           n2(x.totalGbp),
           vatRateLabel(x.r.vat_rate),
           n2(x.vatGbp),
-        ]),
+        ];
+      });
+
+      const FX_NOTE = 'GBP figures use ECB EUR→GBP reference rates at each receipt date.';
+      const BAND_NOTE = 'Bands are classified by each receipt’s effective VAT rate; mixed-rate baskets fall in “Mixed / other”.';
+
+      if (fmt === 'csv') {
+        const esc = (v) => {
+          const s = String(v ?? '');
+          return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+        };
+        const line = (arr) => arr.map(esc).join(',');
+        const csvLines = [
+          line(['Date', 'Name', 'Amount (GBP)', 'VAT %', 'VAT (GBP)']),
+          ...receiptRows.map(line),
+          '',
+          line(['TOTALS']),
+          line(['Total Receipts', n]),
+          line(['Total Amount (GBP)', n2(totalAmountGbp)]),
+          line(['Total VAT (GBP)', n2(totalVatGbp)]),
+          line(['Unique Vendors', uniqueVendors]),
+          '',
+          line(['VAT BY RATE', 'Receipts', 'Net (GBP)', 'VAT (GBP)']),
+          ...BANDS.map(b => line([b, bandTotals[b].count, n2(bandTotals[b].net), n2(bandTotals[b].vat)])),
+          '',
+          line([BAND_NOTE]),
+          line([FX_NOTE]),
+        ];
+        const blob = new Blob(['﻿' + csvLines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `vat_report_${scopeFileTag()}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        return;
+      }
+
+      // Build the sheet as rows, tracking positions so number formats line up.
+      const aoa = [
+        ['Date', 'Name', 'Amount (GBP)', 'VAT %', 'VAT (GBP)'],
+        ...receiptRows,
         [],
         ['TOTALS'],
         ['Total Receipts', n],
@@ -315,9 +404,10 @@ export default function Reports() {
         aoa.push([b, t.count, n2(t.net), n2(t.vat)]);
       });
       aoa.push([]);
-      aoa.push(['Bands are classified by each receipt’s effective VAT rate; mixed-rate baskets fall in “Mixed / other”.']);
-      aoa.push(['GBP figures use ECB EUR→GBP reference rates at each receipt date.']);
+      aoa.push([BAND_NOTE]);
+      aoa.push([FX_NOTE]);
 
+      const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       ws['!cols'] = [{ wch: 16 }, { wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 14 }];
       // Money format on the receipt rows (Amount + VAT columns)
@@ -329,9 +419,11 @@ export default function Reports() {
       setFormat(ws, 'C', bandHeaderRow + 1, BANDS.length, MONEY);
       setFormat(ws, 'D', bandHeaderRow + 1, BANDS.length, MONEY);
       ws['!autofilter'] = { ref: `A1:E${n + 1}` };
-      XLSX.utils.book_append_sheet(wb, ws, monthLabel);
+      // Excel sheet names are max 31 chars and can't contain : \ / ? * [ ]
+      const sheetName = monthLabel.replace(/[:\\/?*[\]]/g, ' ').slice(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
-      XLSX.writeFile(wb, `vat_report_${exportMonth}.xlsx`);
+      XLSX.writeFile(wb, `vat_report_${scopeFileTag()}.xlsx`);
     } catch (e) {
       console.error('Export failed:', e);
       alert('Export failed. Please try again.');
@@ -369,26 +461,76 @@ export default function Reports() {
                 <SelectItem value="all">All Time</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex gap-2 items-center border border-slate-200 bg-white rounded-lg px-3 py-1.5">
-              <Calendar className="w-4 h-4 text-slate-400" />
-              <Select value={exportMonth} onValueChange={setExportMonth}>
-                <SelectTrigger className="w-40 border-0 p-0 h-auto shadow-none focus:ring-0">
-                  <SelectValue placeholder="Select month..." />
+            {/* Export scope */}
+            <Select value={exportScope} onValueChange={setExportScope}>
+              <SelectTrigger className="w-32 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="month">Month</SelectItem>
+                <SelectItem value="year">Year</SelectItem>
+                <SelectItem value="all">All Time</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Month / Year picker, depending on scope */}
+            {exportScope === 'month' && (
+              <div className="flex gap-2 items-center border border-slate-200 bg-white rounded-lg px-3 py-1.5">
+                <Calendar className="w-4 h-4 text-slate-400" />
+                <Select value={exportMonth} onValueChange={setExportMonth}>
+                  <SelectTrigger className="w-36 border-0 p-0 h-auto shadow-none focus:ring-0">
+                    <SelectValue placeholder="Select month..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMonths.map(m => (
+                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {exportScope === 'year' && (
+              <Select value={exportYear} onValueChange={setExportYear}>
+                <SelectTrigger className="w-28 bg-white">
+                  <SelectValue placeholder="Year..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableMonths.map(m => (
-                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  {availableYears.map(y => (
+                    <SelectItem key={y} value={y}>{y}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <Button 
-              onClick={exportToExcel}
-              disabled={!exportMonth || isExporting}
+            )}
+
+            {/* Folder filter */}
+            <Select value={exportFolderId} onValueChange={setExportFolderId}>
+              <SelectTrigger className="w-40 bg-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Folders</SelectItem>
+                {folders.map(f => (
+                  <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              onClick={() => runExport('xlsx')}
+              disabled={isExporting || (exportScope === 'month' && !exportMonth) || (exportScope === 'year' && !exportYear)}
               className="bg-indigo-600 hover:bg-indigo-700 gap-2 disabled:opacity-50"
             >
               <Download className="w-4 h-4" />
-              {isExporting ? 'Exporting...' : 'Export Month'}
+              {isExporting ? 'Exporting...' : 'Excel'}
+            </Button>
+            <Button
+              onClick={() => runExport('csv')}
+              disabled={isExporting || (exportScope === 'month' && !exportMonth) || (exportScope === 'year' && !exportYear)}
+              variant="outline"
+              className="gap-2 disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" />
+              CSV
             </Button>
           </div>
         </div>
