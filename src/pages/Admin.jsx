@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  Shield, FileText, AlertCircle, CheckCircle, Search, ChevronLeft, ChevronRight, Sparkles, TrendingUp
+  Shield, FileText, AlertCircle, CheckCircle, Search, ChevronLeft, ChevronRight, Sparkles, TrendingUp, Copy
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { base44 } from '@/api/base44Client';
 import ReceiptReviewPanel from '../components/admin/ReceiptReviewPanel';
 import AIBulkTraining from '../components/admin/AIBulkTraining';
 import AILearningTab from '../components/admin/AILearningTab';
+import DuplicatesTab from '../components/admin/DuplicatesTab';
 import StatsCard from '../components/stats/StatsCard';
 import { format } from 'date-fns';
 
@@ -208,6 +209,10 @@ export default function Admin() {
               <Sparkles className="w-4 h-4" />
               AI Learning
             </TabsTrigger>
+            <TabsTrigger value="duplicates" className="gap-2">
+              <Copy className="w-4 h-4" />
+              Duplicates
+            </TabsTrigger>
             <TabsTrigger value="corrections" className="gap-2">
               <AlertCircle className="w-4 h-4" />
               Corrections
@@ -367,6 +372,11 @@ export default function Admin() {
           </TabsContent>
 
 
+
+          {/* Duplicates Tab */}
+          <TabsContent value="duplicates">
+            <DuplicatesTab />
+          </TabsContent>
 
           {/* Corrections History Tab */}
           <TabsContent value="corrections">
