@@ -266,9 +266,26 @@ export default function Reports() {
       // fractional rates, so round to a whole percent to keep the report tidy.
       const vatRateLabel = (rate) => (rate > 0 ? `${Math.round(rate)}%` : 'none');
 
-      // One sheet: a row per receipt (Date | Name | Amount | VAT % | VAT amount),
-      // sorted earliest to latest, then a totals table. All amounts in GBP.
-      const ws = XLSX.utils.aoa_to_sheet([
+      // Classify each receipt into a UK VAT band by its effective rate. We only
+      // store one rate per receipt, so a mixed basket lands in "Mixed / other".
+      const vatBand = (rate) => {
+        const r = rate || 0;
+        if (r < 1) return 'Zero (0%)';
+        if (r >= 3.5 && r <= 6.5) return 'Reduced (5%)';
+        if (r >= 16 && r <= 24) return 'Standard (20%)';
+        return 'Mixed / other';
+      };
+      const BANDS = ['Standard (20%)', 'Reduced (5%)', 'Zero (0%)', 'Mixed / other'];
+      const bandTotals = Object.fromEntries(BANDS.map(b => [b, { count: 0, net: 0, vat: 0 }]));
+      rows.forEach(x => {
+        const b = bandTotals[vatBand(x.r.vat_rate)];
+        b.count += 1;
+        b.net += x.totalGbp - x.vatGbp;
+        b.vat += x.vatGbp;
+      });
+
+      // Build the sheet as rows, tracking positions so number formats line up.
+      const aoa = [
         ['Date', 'Name', 'Amount (GBP)', 'VAT %', 'VAT (GBP)'],
         ...rows.map(x => [
           (() => {
@@ -287,14 +304,30 @@ export default function Reports() {
         ['Total VAT (GBP)', n2(totalVatGbp)],
         ['Unique Vendors', uniqueVendors],
         [],
-        ['GBP figures use ECB EUR→GBP reference rates at each receipt date.'],
-      ]);
-      ws['!cols'] = [{ wch: 12 }, { wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 14 }];
+      ];
+      const totalsAmountRow = n + 5; // "Total Amount" row (1-based), with Total VAT below
+
+      // VAT-by-rate band summary (classified by each receipt's effective rate).
+      const bandHeaderRow = aoa.length + 1;
+      aoa.push(['VAT BY RATE', 'Receipts', 'Net (GBP)', 'VAT (GBP)']);
+      BANDS.forEach(b => {
+        const t = bandTotals[b];
+        aoa.push([b, t.count, n2(t.net), n2(t.vat)]);
+      });
+      aoa.push([]);
+      aoa.push(['Bands are classified by each receipt’s effective VAT rate; mixed-rate baskets fall in “Mixed / other”.']);
+      aoa.push(['GBP figures use ECB EUR→GBP reference rates at each receipt date.']);
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws['!cols'] = [{ wch: 16 }, { wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 14 }];
       // Money format on the receipt rows (Amount + VAT columns)
       setFormat(ws, 'C', 2, n, MONEY);
       setFormat(ws, 'E', 2, n, MONEY);
       // Money format on the totals table (Total Amount + Total VAT values)
-      setFormat(ws, 'B', n + 5, 2, MONEY);
+      setFormat(ws, 'B', totalsAmountRow, 2, MONEY);
+      // Money format on the band table (Net + VAT columns, 4 band rows)
+      setFormat(ws, 'C', bandHeaderRow + 1, BANDS.length, MONEY);
+      setFormat(ws, 'D', bandHeaderRow + 1, BANDS.length, MONEY);
       ws['!autofilter'] = { ref: `A1:E${n + 1}` };
       XLSX.utils.book_append_sheet(wb, ws, monthLabel);
 
