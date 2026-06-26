@@ -308,6 +308,9 @@ export default function Upload() {
     - Double-check your extraction against the training rules before returning`;
 
     const result = await base44.integrations.Core.InvokeLLM({
+      // Pin the most capable model for accuracy on messy/foreign receipts and
+      // VAT classification, rather than the app-level default.
+      model: 'claude_opus_4_7',
       prompt: extractionPrompt,
       file_urls: [fileUrl],
       response_json_schema: {
