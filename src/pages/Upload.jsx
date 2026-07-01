@@ -24,8 +24,16 @@ const baseDocName = (fileName) => (fileName || '').replace(/\s*\[\d+\/\d+\]\s*$/
 const contentKey = (r) =>
   [(r.vendor_name || '').toLowerCase().trim(), r.receipt_date || '', r.total_amount ?? '', r.vat_amount ?? ''].join('|');
 
+// True for base44's monthly AI/integration credit limit (HTTP 402). Retrying
+// or continuing the batch is pointless — the account is out of credits.
+const isCreditLimitError = (e) => {
+  const msg = (e?.message || '') + JSON.stringify(e?.response?.data || '');
+  return e?.response?.status === 402 || /limit of integrations|integration_credits/i.test(msg);
+};
+
 // Retry a flaky async op (upload / AI extraction) with linear backoff so a
-// single network blip doesn't abort a whole receipt in a long batch.
+// single network blip doesn't abort a whole receipt in a long batch. Client
+// errors (4xx) like the credit limit are permanent, so don't retry them.
 const withRetry = async (fn, attempts = 3) => {
   let lastErr;
   for (let i = 0; i < attempts; i++) {
@@ -33,6 +41,8 @@ const withRetry = async (fn, attempts = 3) => {
       return await fn();
     } catch (e) {
       lastErr = e;
+      const status = e?.response?.status;
+      if (isCreditLimitError(e) || (status >= 400 && status < 500)) throw e;
       if (i < attempts - 1) await new Promise((res) => setTimeout(res, 1000 * (i + 1)));
     }
   }
@@ -45,6 +55,7 @@ export default function Upload() {
   const [processedFiles, setProcessedFiles] = useState([]);
   const [errors, setErrors] = useState([]);
   const [skipped, setSkipped] = useState([]);
+  const [limitReached, setLimitReached] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [selectedFolderId, setSelectedFolderId] = useState(null);
   const navigate = useNavigate();
@@ -448,6 +459,7 @@ export default function Upload() {
     setProcessedFiles([]);
     setErrors([]);
     setSkipped([]);
+    setLimitReached(false);
     setElapsedTime(0);
 
     const startTime = Date.now();
@@ -504,6 +516,12 @@ export default function Upload() {
         }
       } catch (error) {
         console.error(`Error processing ${file.name}:`, error);
+        // base44 monthly AI credits exhausted — no point trying more files.
+        if (isCreditLimitError(error)) {
+          setLimitReached(true);
+          errorList.push({ fileName: file.name, error: 'base44 AI usage limit reached for this month.' });
+          break;
+        }
         errorList.push({ fileName: file.name, error: error.message });
       }
     }
@@ -577,6 +595,20 @@ export default function Upload() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       <div className="max-w-4xl mx-auto px-6 py-12">
+        {/* base44 AI credit limit reached */}
+        {limitReached && (
+          <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div className="text-sm text-red-800">
+              <p className="font-semibold mb-1">AI usage limit reached</p>
+              <p className="text-red-700">
+                Your base44 plan has hit its monthly AI/integration limit, so receipts can’t be
+                scanned right now. Upgrade your base44 plan or wait for the monthly reset, then try again.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
