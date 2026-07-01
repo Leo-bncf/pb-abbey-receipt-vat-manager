@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { FileText, ArrowRight, CheckCircle, Loader2, AlertCircle, Clock } from 'lucide-react';
+import { FileText, ArrowRight, CheckCircle, Loader2, AlertCircle, Clock, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -66,9 +66,13 @@ export default function Upload() {
     existingReceipts.forEach(r => {
       const name = baseDocName(r.file_name);
       if (!name) return;
-      if (!byDoc[name]) byDoc[name] = { name, count: 0, date: r.created_date };
+      if (!byDoc[name]) byDoc[name] = { name, count: 0, date: r.created_date, file_url: r.file_url };
       byDoc[name].count += 1;
-      if (new Date(r.created_date) > new Date(byDoc[name].date)) byDoc[name].date = r.created_date;
+      // Keep the most recent upload's file + date (all parts share one source file).
+      if (new Date(r.created_date) > new Date(byDoc[name].date)) {
+        byDoc[name].date = r.created_date;
+        byDoc[name].file_url = r.file_url;
+      }
     });
     return Object.values(byDoc).sort((a, b) => new Date(b.date) - new Date(a.date));
   }, [existingReceipts]);
@@ -550,6 +554,19 @@ export default function Upload() {
               <Badge variant="outline" className="text-xs">
                 {doc.count} receipt{doc.count !== 1 ? 's' : ''}
               </Badge>
+              {doc.file_url && (
+                <a
+                  href={doc.file_url}
+                  download={doc.name}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Download original file"
+                  className="inline-flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 hover:underline"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download
+                </a>
+              )}
             </div>
           </div>
         ))}
