@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { 
-  Download, FileSpreadsheet, Calendar, Building2, 
+  Download, FileSpreadsheet, FileText, Building2,
   MapPin, TrendingUp, Coins, Percent
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,21 +18,17 @@ import * as XLSX from 'xlsx';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
+// A single source PDF/image becomes several receipts named "doc.pdf [2/5]".
+// Strip that suffix to recover the original uploaded document name.
+const baseDocName = (fileName) => (fileName || '').replace(/\s*\[\d+\/\d+\]\s*$/, '').trim();
+
 export default function Reports() {
   const [dateRange, setDateRange] = useState('all');
-  const [exportMonth, setExportMonth] = useState('');
-  const [exportScope, setExportScope] = useState('month'); // 'month' | 'year' | 'all'
-  const [exportYear, setExportYear] = useState('');
-  const [exportFolderId, setExportFolderId] = useState('all');
+  const [exportDoc, setExportDoc] = useState(''); // uploaded document name, or 'all'
 
   const { data: receipts = [] } = useQuery({
     queryKey: ['receipts'],
     queryFn: () => base44.entities.Receipt.list('-created_date'),
-  });
-
-  const { data: folders = [] } = useQuery({
-    queryKey: ['folders'],
-    queryFn: () => base44.entities.Folder.list('name'),
   });
 
   // Filter receipts by date range
@@ -132,29 +128,17 @@ export default function Reports() {
     return Object.values(countryMap).sort((a, b) => b.vat - a.vat);
   }, [filteredReceipts]);
 
-  // Available months for export dropdown (derived from receipts)
-  const availableMonths = useMemo(() => {
-    const monthSet = new Set();
+  // Uploaded documents for the export dropdown, newest upload first.
+  const availableDocs = useMemo(() => {
+    const byDoc = {};
     receipts.forEach(r => {
-      const dateStr = r.receipt_date || r.created_date;
-      if (dateStr) {
-        monthSet.add(format(new Date(dateStr), 'yyyy-MM'));
-      }
+      const name = baseDocName(r.file_name);
+      if (!name) return;
+      if (!byDoc[name]) byDoc[name] = { name, count: 0, latest: r.created_date };
+      byDoc[name].count += 1;
+      if (new Date(r.created_date) > new Date(byDoc[name].latest)) byDoc[name].latest = r.created_date;
     });
-    return Array.from(monthSet).sort().reverse().map(m => ({
-      value: m,
-      label: format(new Date(m + '-01'), 'MMMM yyyy')
-    }));
-  }, [receipts]);
-
-  // Available years for export dropdown (derived from receipts)
-  const availableYears = useMemo(() => {
-    const yearSet = new Set();
-    receipts.forEach(r => {
-      const dateStr = r.receipt_date || r.created_date;
-      if (dateStr) yearSet.add(format(new Date(dateStr), 'yyyy'));
-    });
-    return Array.from(yearSet).sort().reverse();
+    return Object.values(byDoc).sort((a, b) => new Date(b.latest) - new Date(a.latest));
   }, [receipts]);
 
   // Summary stats
@@ -169,53 +153,30 @@ export default function Reports() {
       : 0
   }), [filteredReceipts]);
 
-  // Default the year picker once receipts load.
-  React.useEffect(() => {
-    if (!exportYear && availableYears.length > 0) setExportYear(availableYears[0]);
-  }, [availableYears, exportYear]);
-
-  // Receipts for the current export scope (date range + folder).
+  // Receipts for the selected document (or all documents).
   const getExportSet = () => {
-    let set = receipts;
-    if (exportFolderId !== 'all') set = set.filter(r => (r.folder_id || '') === exportFolderId);
-    return set.filter(r => {
-      if (exportScope === 'all') return true;
-      const d = (r.receipt_date || r.created_date || '').slice(0, 10);
-      if (!d) return false;
-      if (exportScope === 'month') return d.slice(0, 7) === exportMonth;
-      if (exportScope === 'year') return d.slice(0, 4) === String(exportYear);
-      return true;
-    });
+    if (exportDoc === 'all') return receipts;
+    return receipts.filter(r => baseDocName(r.file_name) === exportDoc);
   };
 
-  const folderName = (id) => folders.find(f => f.id === id)?.name || 'Folder';
-
-  const scopeLabel = () => {
-    let range;
-    if (exportScope === 'month') range = exportMonth ? format(new Date(exportMonth + '-01'), 'MMMM yyyy') : 'Month';
-    else if (exportScope === 'year') range = String(exportYear);
-    else range = 'All time';
-    return exportFolderId === 'all' ? range : `${range} – ${folderName(exportFolderId)}`;
-  };
+  const scopeLabel = () => (exportDoc === 'all' ? 'All documents' : exportDoc.replace(/\.pdf$/i, ''));
 
   const scopeFileTag = () => {
-    let t = exportScope === 'month' ? exportMonth : exportScope === 'year' ? String(exportYear) : 'all';
-    if (exportFolderId !== 'all') t += '_' + folderName(exportFolderId).replace(/[^a-z0-9]+/gi, '_').toLowerCase();
-    return t;
+    const base = exportDoc === 'all' ? 'all_documents' : exportDoc.replace(/\.[a-z0-9]+$/i, '');
+    return base.replace(/[^a-z0-9]+/gi, '_').toLowerCase().replace(/^_+|_+$/g, '');
   };
 
   const [isExporting, setIsExporting] = useState(false);
 
   const runExport = async (fmt) => {
-    if (exportScope === 'month' && !exportMonth) return;
-    if (exportScope === 'year' && !exportYear) return;
+    if (!exportDoc) return;
     setIsExporting(true);
 
     try {
       const monthReceipts = getExportSet();
 
       if (monthReceipts.length === 0) {
-        alert('No receipts found for the selected range and folder.');
+        alert('No receipts found for the selected document.');
         return;
       }
 
@@ -461,63 +422,27 @@ export default function Reports() {
                 <SelectItem value="all">All Time</SelectItem>
               </SelectContent>
             </Select>
-            {/* Export scope */}
-            <Select value={exportScope} onValueChange={setExportScope}>
-              <SelectTrigger className="w-32 bg-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="month">Month</SelectItem>
-                <SelectItem value="year">Year</SelectItem>
-                <SelectItem value="all">All Time</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Month / Year picker, depending on scope */}
-            {exportScope === 'month' && (
-              <div className="flex gap-2 items-center border border-slate-200 bg-white rounded-lg px-3 py-1.5">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                <Select value={exportMonth} onValueChange={setExportMonth}>
-                  <SelectTrigger className="w-36 border-0 p-0 h-auto shadow-none focus:ring-0">
-                    <SelectValue placeholder="Select month..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableMonths.map(m => (
-                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {exportScope === 'year' && (
-              <Select value={exportYear} onValueChange={setExportYear}>
-                <SelectTrigger className="w-28 bg-white">
-                  <SelectValue placeholder="Year..." />
+            {/* Document to export */}
+            <div className="flex gap-2 items-center border border-slate-200 bg-white rounded-lg px-3 py-1.5">
+              <FileText className="w-4 h-4 text-slate-400" />
+              <Select value={exportDoc} onValueChange={setExportDoc}>
+                <SelectTrigger className="w-64 border-0 p-0 h-auto shadow-none focus:ring-0">
+                  <SelectValue placeholder="Select document..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableYears.map(y => (
-                    <SelectItem key={y} value={y}>{y}</SelectItem>
+                  <SelectItem value="all">All documents</SelectItem>
+                  {availableDocs.map(d => (
+                    <SelectItem key={d.name} value={d.name}>
+                      {d.name.replace(/\.pdf$/i, '')} ({d.count})
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            )}
-
-            {/* Folder filter */}
-            <Select value={exportFolderId} onValueChange={setExportFolderId}>
-              <SelectTrigger className="w-40 bg-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Folders</SelectItem>
-                {folders.map(f => (
-                  <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            </div>
 
             <Button
               onClick={() => runExport('xlsx')}
-              disabled={isExporting || (exportScope === 'month' && !exportMonth) || (exportScope === 'year' && !exportYear)}
+              disabled={isExporting || !exportDoc}
               className="bg-indigo-600 hover:bg-indigo-700 gap-2 disabled:opacity-50"
             >
               <Download className="w-4 h-4" />
@@ -525,7 +450,7 @@ export default function Reports() {
             </Button>
             <Button
               onClick={() => runExport('csv')}
-              disabled={isExporting || (exportScope === 'month' && !exportMonth) || (exportScope === 'year' && !exportYear)}
+              disabled={isExporting || !exportDoc}
               variant="outline"
               className="gap-2 disabled:opacity-50"
             >
