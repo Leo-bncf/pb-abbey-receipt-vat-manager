@@ -318,38 +318,57 @@ export default function Upload() {
     - When uncertain, default to the most common pattern from training data
     - Double-check your extraction against the training rules before returning`;
 
-    const result = await base44.integrations.Core.InvokeLLM({
-      // Use base44's app-level default model. Premium models (e.g. Opus 4.7)
-      // aren't enabled on this plan and return 402, which blocks scanning.
-      prompt: extractionPrompt,
-      file_urls: [fileUrl],
-      response_json_schema: {
-        type: 'object',
-        properties: {
-          receipts: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                vendor_name: { type: 'string' },
-                receipt_date: { type: 'string' },
-                country: { type: 'string' },
-                currency: { type: 'string' },
-                total_amount: { type: 'number' },
-                vat_amount: { type: 'number' },
-                vat_rate: { type: 'number' },
-                vat_explicit: { type: 'boolean' },
-                is_tax_free: { type: 'boolean' },
-                ocr_text: { type: 'string' },
-                extraction_notes: { type: 'string' },
-                confidence_score: { type: 'number', description: 'Your confidence in the extraction 0-100' },
-                receipt_location: { type: 'string', description: 'Where this receipt is located in the image' }
-              }
+    // Primary scan path: our Mistral backend function (OCR every page → structured
+    // JSON), which has no base44 model/credit limits and reads all pages of long
+    // PDFs. Falls back to base44's InvokeLLM if the function errors, so uploads
+    // never break.
+    const responseSchema = {
+      type: 'object',
+      properties: {
+        receipts: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              vendor_name: { type: 'string' },
+              receipt_date: { type: 'string' },
+              country: { type: 'string' },
+              currency: { type: 'string' },
+              total_amount: { type: 'number' },
+              vat_amount: { type: 'number' },
+              vat_rate: { type: 'number' },
+              vat_explicit: { type: 'boolean' },
+              is_tax_free: { type: 'boolean' },
+              ocr_text: { type: 'string' },
+              extraction_notes: { type: 'string' },
+              confidence_score: { type: 'number', description: 'Your confidence in the extraction 0-100' },
+              receipt_location: { type: 'string', description: 'Where this receipt is located in the image' }
             }
           }
         }
       }
-    });
+    };
+
+    let result;
+    try {
+      const fn = await base44.functions.invoke('extractReceiptsMistral', {
+        file_url: fileUrl,
+        prompt: extractionPrompt,
+      });
+      // invoke() may wrap the payload under `.data`
+      const payload = fn?.data ?? fn;
+      if (!payload || payload.error || !Array.isArray(payload.receipts)) {
+        throw new Error(payload?.error || 'Mistral function returned no receipts');
+      }
+      result = payload;
+    } catch (mistralErr) {
+      console.warn('Mistral scan failed, falling back to base44 InvokeLLM:', mistralErr?.message || mistralErr);
+      result = await base44.integrations.Core.InvokeLLM({
+        prompt: extractionPrompt,
+        file_urls: [fileUrl],
+        response_json_schema: responseSchema,
+      });
+    }
 
     // Process each receipt found in the image
     const receiptsData = [];
