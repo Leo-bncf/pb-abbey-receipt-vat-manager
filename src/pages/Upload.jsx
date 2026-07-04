@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { FileText, ArrowRight, CheckCircle, Loader2, AlertCircle, Clock, Download } from 'lucide-react';
+import { FileText, ArrowRight, CheckCircle, Loader2, AlertCircle, Clock, Download, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +49,7 @@ export default function Upload() {
   const [errors, setErrors] = useState([]);
   const [skipped, setSkipped] = useState([]);
   const [limitReached, setLimitReached] = useState(false);
+  const [rescanningDoc, setRescanningDoc] = useState(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [selectedFolderId, setSelectedFolderId] = useState(null);
   const navigate = useNavigate();
@@ -70,12 +71,14 @@ export default function Upload() {
     existingReceipts.forEach(r => {
       const name = baseDocName(r.file_name);
       if (!name) return;
-      if (!byDoc[name]) byDoc[name] = { name, count: 0, date: r.created_date, file_url: r.file_url };
+      if (!byDoc[name]) byDoc[name] = { name, count: 0, date: r.created_date, file_url: r.file_url, file_type: r.file_type, folder_id: r.folder_id };
       byDoc[name].count += 1;
       // Keep the most recent upload's file + date (all parts share one source file).
       if (new Date(r.created_date) > new Date(byDoc[name].date)) {
         byDoc[name].date = r.created_date;
         byDoc[name].file_url = r.file_url;
+        byDoc[name].file_type = r.file_type;
+        byDoc[name].folder_id = r.folder_id;
       }
     });
     return Object.values(byDoc).sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -528,6 +531,59 @@ export default function Upload() {
     queryClient.invalidateQueries({ queryKey: ['receipts'] });
   };
 
+  // Re-scan an already-uploaded document: re-run the AI on the original file,
+  // then replace its old receipts. Use when the first scan missed some tickets.
+  const rescanDocument = async (doc) => {
+    const docReceipts = existingReceipts.filter(r => baseDocName(r.file_name) === doc.name);
+    if (!doc.file_url || docReceipts.length === 0) {
+      alert('Cannot rescan: the original file is not available.');
+      return;
+    }
+    if (!confirm(
+      `Rescan "${doc.name}"?\n\n` +
+      `This re-reads the original file and REPLACES its current ${docReceipts.length} receipt(s). ` +
+      `Use this if the scan missed some tickets.`
+    )) return;
+
+    setRescanningDoc(doc.name);
+    try {
+      let feedbackData = [];
+      let correctionsData = [];
+      try {
+        feedbackData = await base44.entities.AIFeedback.list('-created_date', 100);
+        correctionsData = await base44.entities.ReceiptCorrection.list('-created_date', 200);
+      } catch (e) {
+        console.error('Failed to load AI training data:', e);
+      }
+
+      const batchId = `rescan_${Date.now()}`;
+      // Extract first; only delete the old receipts once the new scan succeeds.
+      const newReceipts = await withRetry(() =>
+        processReceipt(doc.file_url, doc.name, doc.file_type || 'pdf', batchId, feedbackData, correctionsData)
+      );
+
+      if (newReceipts.length === 0) {
+        alert('Rescan found no receipts — keeping the existing ones.');
+        return;
+      }
+
+      for (const r of docReceipts) await base44.entities.Receipt.delete(r.id);
+      for (const rd of newReceipts) {
+        await base44.entities.Receipt.create({ ...rd, folder_id: doc.folder_id || undefined });
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['receipts'] });
+      alert(`Rescanned "${doc.name}": ${docReceipts.length} → ${newReceipts.length} receipt(s).`);
+    } catch (error) {
+      console.error('Rescan failed:', error);
+      alert(isCreditLimitError(error)
+        ? 'Rescan failed: base44 AI usage limit reached for this month.'
+        : `Rescan failed: ${error.message}`);
+    } finally {
+      setRescanningDoc(null);
+    }
+  };
+
   const totalVAT = processedFiles
     .filter(f => f.success)
     .reduce((sum, f) => sum + (f.vat_amount || 0), 0);
@@ -578,6 +634,19 @@ export default function Upload() {
                   Download
                 </a>
               )}
+              <button
+                onClick={() => rescanDocument(doc)}
+                disabled={!!rescanningDoc}
+                title="Delete this document's receipts and scan it again"
+                className="inline-flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 hover:underline disabled:opacity-40"
+              >
+                {rescanningDoc === doc.name ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5" />
+                )}
+                {rescanningDoc === doc.name ? 'Rescanning…' : 'Rescan'}
+              </button>
             </div>
           </div>
         ))}
