@@ -215,24 +215,16 @@ export default function Reports() {
         return rateByDate[chosen];
       };
 
-      // Drop duplicate rows so totals aren't double-counted. Two sources of
-      // duplicates: (1) re-uploading the same document (same file_name), and
-      // (2) the same receipt appearing in two differently-named documents
-      // (e.g. overlapping "Part 2"/"Part 3" PDFs) — caught by a content key of
-      // vendor + date + total + VAT.
+      // Drop only exact-duplicate rows (same file_name = same document + same
+      // receipt slot, e.g. an accidental re-upload). We do NOT dedup by content:
+      // two genuine tickets can share vendor + date + amount, and collapsing
+      // them would undercount the report. Content-duplicate review lives in
+      // Admin → Duplicates.
       const seenFileNames = new Set();
-      const seenContentKeys = new Set();
       const dedupedReceipts = monthReceipts.filter(r => {
         const fileKey = r.file_name || `id:${r.id}`;
-        const cKey = [
-          (r.vendor_name || '').toLowerCase().trim(),
-          r.receipt_date || '',
-          r.total_amount ?? '',
-          r.vat_amount ?? '',
-        ].join('|');
-        if (seenFileNames.has(fileKey) || seenContentKeys.has(cKey)) return false;
+        if (seenFileNames.has(fileKey)) return false;
         seenFileNames.add(fileKey);
-        seenContentKeys.add(cKey);
         return true;
       });
 

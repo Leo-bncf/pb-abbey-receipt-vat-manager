@@ -17,13 +17,6 @@ import { createPageUrl } from '@/utils';
 // Strip that suffix to recover the original document name.
 const baseDocName = (fileName) => (fileName || '').replace(/\s*\[\d+\/\d+\]\s*$/, '').trim();
 
-// Identifies a receipt by its content (not its file name). Two differently
-// named PDFs that contain the same receipt produce the same key, so this
-// catches duplicates that a file-name check can't (e.g. overlapping "Part 2"
-// and "Part 3" documents).
-const contentKey = (r) =>
-  [(r.vendor_name || '').toLowerCase().trim(), r.receipt_date || '', r.total_amount ?? '', r.vat_amount ?? ''].join('|');
-
 // True for base44's monthly AI/integration credit limit (HTTP 402). Retrying
 // or continuing the batch is pointless — the account is out of credits.
 const isCreditLimitError = (e) => {
@@ -446,11 +439,10 @@ export default function Upload() {
       forceUpload = true;   // Continue with upload (re-upload the duplicates)
     }
 
-    // Guards against duplicates (unless the user chose to re-upload above):
-    //  - by file_name: the exact same document re-uploaded
-    //  - by content:   the same receipt arriving in a differently-named doc
+    // Only guard against an exact re-upload (same file_name). Content-based
+    // dedup is intentionally left to Admin → Duplicates so real tickets that
+    // happen to share vendor/date/amount are never dropped on upload.
     const existingFileNames = new Set(existingReceipts.map(r => r.file_name));
-    const existingContentKeys = new Set(existingReceipts.map(contentKey));
     const skippedDuplicates = [];
 
     setIsProcessing(true);
@@ -495,11 +487,14 @@ export default function Upload() {
           processReceipt(file_url, file.name, getFileType(file), batchId, feedbackData, correctionsData)
         );
 
-        // Save each receipt, skipping any that duplicate an existing one by
-        // file name or by content (unless the user chose to re-upload).
+        // Save every extracted receipt. Only skip an EXACT re-upload (same
+        // file_name = same document + same receipt slot). We deliberately do
+        // NOT skip by content here: two genuine tickets can share vendor +
+        // date + amount (e.g. two coffees), and dropping them silently loses
+        // real receipts. Same-content duplicates from re-uploaded documents
+        // are surfaced for review in Admin → Duplicates instead.
         for (const receiptData of receiptsData) {
-          const cKey = contentKey(receiptData);
-          if (!forceUpload && (existingFileNames.has(receiptData.file_name) || existingContentKeys.has(cKey))) {
+          if (!forceUpload && existingFileNames.has(receiptData.file_name)) {
             skippedDuplicates.push({
               file_name: receiptData.file_name,
               vendor_name: receiptData.vendor_name,
@@ -510,7 +505,6 @@ export default function Upload() {
           }
           const savedReceipt = await base44.entities.Receipt.create(receiptData);
           existingFileNames.add(receiptData.file_name);
-          existingContentKeys.add(cKey);
           results.push({ ...savedReceipt, success: true });
         }
       } catch (error) {
