@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { 
-  Download, FileSpreadsheet, FileText, Building2,
+  Download, FileSpreadsheet, Folder, Building2,
   MapPin, TrendingUp, Coins, Percent
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,17 +18,18 @@ import * as XLSX from 'xlsx';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
-// A single source PDF/image becomes several receipts named "doc.pdf [2/5]".
-// Strip that suffix to recover the original uploaded document name.
-const baseDocName = (fileName) => (fileName || '').replace(/\s*\[\d+\/\d+\]\s*$/, '').trim();
-
 export default function Reports() {
   const [dateRange, setDateRange] = useState('all');
-  const [exportDoc, setExportDoc] = useState(''); // uploaded document name, or 'all'
+  const [exportFolder, setExportFolder] = useState(''); // folder id, 'root', or 'all'
 
   const { data: receipts = [] } = useQuery({
     queryKey: ['receipts'],
     queryFn: () => base44.entities.Receipt.list('-created_date'),
+  });
+
+  const { data: folders = [] } = useQuery({
+    queryKey: ['folders'],
+    queryFn: () => base44.entities.Folder.list('name'),
   });
 
   // Filter receipts by date range
@@ -128,17 +129,15 @@ export default function Reports() {
     return Object.values(countryMap).sort((a, b) => b.vat - a.vat);
   }, [filteredReceipts]);
 
-  // Uploaded documents for the export dropdown, newest upload first.
-  const availableDocs = useMemo(() => {
-    const byDoc = {};
+  // Receipt count per folder created in the Dashboard, for the export dropdown.
+  const folderCounts = useMemo(() => {
+    const counts = {};
+    let root = 0;
     receipts.forEach(r => {
-      const name = baseDocName(r.file_name);
-      if (!name) return;
-      if (!byDoc[name]) byDoc[name] = { name, count: 0, latest: r.created_date };
-      byDoc[name].count += 1;
-      if (new Date(r.created_date) > new Date(byDoc[name].latest)) byDoc[name].latest = r.created_date;
+      if (r.folder_id) counts[r.folder_id] = (counts[r.folder_id] || 0) + 1;
+      else root += 1;
     });
-    return Object.values(byDoc).sort((a, b) => new Date(b.latest) - new Date(a.latest));
+    return { counts, root };
   }, [receipts]);
 
   // Summary stats
@@ -153,30 +152,35 @@ export default function Reports() {
       : 0
   }), [filteredReceipts]);
 
-  // Receipts for the selected document (or all documents).
+  const folderName = (id) => folders.find(f => f.id === id)?.name || 'Folder';
+
+  // Receipts for the selected folder ('all' = everything, 'root' = no folder).
   const getExportSet = () => {
-    if (exportDoc === 'all') return receipts;
-    return receipts.filter(r => baseDocName(r.file_name) === exportDoc);
+    if (exportFolder === 'all') return receipts;
+    if (exportFolder === 'root') return receipts.filter(r => !r.folder_id);
+    return receipts.filter(r => r.folder_id === exportFolder);
   };
 
-  const scopeLabel = () => (exportDoc === 'all' ? 'All documents' : exportDoc.replace(/\.pdf$/i, ''));
-
-  const scopeFileTag = () => {
-    const base = exportDoc === 'all' ? 'all_documents' : exportDoc.replace(/\.[a-z0-9]+$/i, '');
-    return base.replace(/[^a-z0-9]+/gi, '_').toLowerCase().replace(/^_+|_+$/g, '');
+  const scopeLabel = () => {
+    if (exportFolder === 'all') return 'All folders';
+    if (exportFolder === 'root') return 'No folder';
+    return folderName(exportFolder);
   };
+
+  const scopeFileTag = () =>
+    scopeLabel().replace(/[^a-z0-9]+/gi, '_').toLowerCase().replace(/^_+|_+$/g, '');
 
   const [isExporting, setIsExporting] = useState(false);
 
   const runExport = async (fmt) => {
-    if (!exportDoc) return;
+    if (!exportFolder) return;
     setIsExporting(true);
 
     try {
       const monthReceipts = getExportSet();
 
       if (monthReceipts.length === 0) {
-        alert('No receipts found for the selected document.');
+        alert('No receipts found in the selected folder.');
         return;
       }
 
@@ -414,27 +418,30 @@ export default function Reports() {
                 <SelectItem value="all">All Time</SelectItem>
               </SelectContent>
             </Select>
-            {/* Document to export */}
+            {/* Folder to export (folders created in the Dashboard) */}
             <div className="flex gap-2 items-center border border-slate-200 bg-white rounded-lg px-3 py-1.5">
-              <FileText className="w-4 h-4 text-slate-400" />
-              <Select value={exportDoc} onValueChange={setExportDoc}>
-                <SelectTrigger className="w-64 border-0 p-0 h-auto shadow-none focus:ring-0">
-                  <SelectValue placeholder="Select document..." />
+              <Folder className="w-4 h-4 text-slate-400" />
+              <Select value={exportFolder} onValueChange={setExportFolder}>
+                <SelectTrigger className="w-56 border-0 p-0 h-auto shadow-none focus:ring-0">
+                  <SelectValue placeholder="Select folder..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All documents</SelectItem>
-                  {availableDocs.map(d => (
-                    <SelectItem key={d.name} value={d.name}>
-                      {d.name.replace(/\.pdf$/i, '')} ({d.count})
+                  <SelectItem value="all">All folders ({receipts.length})</SelectItem>
+                  {folders.map(f => (
+                    <SelectItem key={f.id} value={f.id}>
+                      {f.name} ({folderCounts.counts[f.id] || 0})
                     </SelectItem>
                   ))}
+                  {folderCounts.root > 0 && (
+                    <SelectItem value="root">No folder ({folderCounts.root})</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
 
             <Button
               onClick={() => runExport('xlsx')}
-              disabled={isExporting || !exportDoc}
+              disabled={isExporting || !exportFolder}
               className="bg-indigo-600 hover:bg-indigo-700 gap-2 disabled:opacity-50"
             >
               <Download className="w-4 h-4" />
@@ -442,7 +449,7 @@ export default function Reports() {
             </Button>
             <Button
               onClick={() => runExport('csv')}
-              disabled={isExporting || !exportDoc}
+              disabled={isExporting || !exportFolder}
               variant="outline"
               className="gap-2 disabled:opacity-50"
             >
