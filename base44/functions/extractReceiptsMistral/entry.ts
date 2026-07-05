@@ -5,7 +5,7 @@
 // Uses the MISTRAL_API_KEY secret server-side. Invoke with:
 //   base44.functions.invoke('extractReceiptsMistral', { file_url, prompt })
 
-const OCR = "https://api.mistral.ai/v1/ocr/process";
+const OCR = "https://api.mistral.ai/v1/ocr";
 const CHAT = "https://api.mistral.ai/v1/chat/completions";
 
 async function withRetry(fn, attempts = 3) {
