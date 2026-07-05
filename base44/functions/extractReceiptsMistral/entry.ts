@@ -49,7 +49,11 @@ const SCHEMA_HINT =
   `"receipt_date": "YYYY-MM-DD", "country": string, "currency": string, "total_amount": number, ` +
   `"vat_amount": number, "vat_rate": number, "vat_explicit": boolean, "is_tax_free": boolean, ` +
   `"ocr_text": string, "extraction_notes": string, "confidence_score": number, ` +
-  `"receipt_location": string } ] }. If the page has no receipt, return { "receipts": [] }.`;
+  `"receipt_location": string } ] }. If the page has no receipt, return { "receipts": [] }. ` +
+  `RULES: vendor_name = the clean business name ONLY (no parentheses, no notes, no commentary — ` +
+  `put any uncertainty in extraction_notes instead). receipt_date = exactly as printed, read the ` +
+  `year digits carefully (these are recent receipts, not from years ago). Put doubts/guesses in ` +
+  `extraction_notes, never inside vendor_name or the numeric fields.`;
 
 Deno.serve(async (req) => {
   try {
