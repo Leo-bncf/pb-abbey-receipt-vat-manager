@@ -1,0 +1,119 @@
+{
+  "name": "Receipt",
+  "type": "object",
+  "properties": {
+    "file_url": {
+      "type": "string",
+      "description": "URL of uploaded receipt file"
+    },
+    "file_name": {
+      "type": "string",
+      "description": "Original file name"
+    },
+    "file_type": {
+      "type": "string",
+      "enum": [
+        "pdf",
+        "jpg",
+        "jpeg",
+        "png"
+      ],
+      "description": "File format"
+    },
+    "folder_id": {
+      "type": "string",
+      "description": "Folder ID where receipt is stored"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "uploaded",
+        "processing",
+        "extracted",
+        "reviewed",
+        "error"
+      ],
+      "default": "uploaded",
+      "description": "Processing status"
+    },
+    "ocr_text": {
+      "type": "string",
+      "description": "Extracted OCR text from receipt"
+    },
+    "vendor_name": {
+      "type": "string",
+      "description": "Vendor/company name"
+    },
+    "receipt_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date on receipt"
+    },
+    "country": {
+      "type": "string",
+      "description": "Country of purchase"
+    },
+    "currency": {
+      "type": "string",
+      "description": "Currency code (GBP, EUR, USD, etc.)"
+    },
+    "total_amount": {
+      "type": "number",
+      "description": "Total amount on receipt"
+    },
+    "vat_amount": {
+      "type": "number",
+      "description": "VAT amount (extracted or calculated)"
+    },
+    "vat_rate": {
+      "type": "number",
+      "description": "VAT rate percentage"
+    },
+    "vat_explicit": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether VAT was explicitly shown on receipt"
+    },
+    "is_tax_free": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether receipt is tax-free"
+    },
+    "confidence_score": {
+      "type": "number",
+      "description": "AI confidence score 0-100"
+    },
+    "needs_review": {
+      "type": "boolean",
+      "default": false,
+      "description": "Flagged for admin review"
+    },
+    "is_reviewed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Has been reviewed by admin"
+    },
+    "reviewed_by": {
+      "type": "string",
+      "description": "Email of reviewer"
+    },
+    "reviewed_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When review was completed"
+    },
+    "upload_batch": {
+      "type": "string",
+      "description": "Batch identifier for grouped uploads"
+    },
+    "extraction_notes": {
+      "type": "string",
+      "description": "AI notes about extraction"
+    }
+  },
+  "required": [
+    "file_url",
+    "file_name",
+    "status"
+  ]
+}

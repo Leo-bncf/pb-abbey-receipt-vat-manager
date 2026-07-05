@@ -1,0 +1,34 @@
+{
+  "name": "Folder",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Folder name"
+    },
+    "parent_folder_id": {
+      "type": "string",
+      "description": "Parent folder ID for nested structure"
+    },
+    "color": {
+      "type": "string",
+      "enum": [
+        "blue",
+        "green",
+        "purple",
+        "amber",
+        "rose",
+        "slate"
+      ],
+      "default": "blue",
+      "description": "Folder color"
+    },
+    "description": {
+      "type": "string",
+      "description": "Optional folder description"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

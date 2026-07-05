@@ -1,0 +1,68 @@
+{
+  "name": "AIFeedback",
+  "type": "object",
+  "properties": {
+    "receipt_id": {
+      "type": "string",
+      "description": "Related receipt ID (optional)"
+    },
+    "feedback_type": {
+      "type": "string",
+      "enum": [
+        "correction",
+        "rule",
+        "pattern",
+        "general"
+      ],
+      "description": "Type of feedback"
+    },
+    "user_message": {
+      "type": "string",
+      "description": "Admin's feedback message"
+    },
+    "ai_response": {
+      "type": "string",
+      "description": "AI acknowledgment/response"
+    },
+    "rule_learned": {
+      "type": "string",
+      "description": "Rule or pattern extracted from feedback"
+    },
+    "is_applied": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this learning has been applied"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "high",
+        "normal",
+        "low",
+        "disabled"
+      ],
+      "default": "normal",
+      "description": "Priority level of this rule"
+    },
+    "vendor_name": {
+      "type": "string",
+      "description": "Related vendor name (for filtering)"
+    },
+    "country": {
+      "type": "string",
+      "description": "Related country (for filtering)"
+    },
+    "vat_rate": {
+      "type": "number",
+      "description": "Related VAT rate (for filtering)"
+    },
+    "submitted_by": {
+      "type": "string",
+      "description": "Admin who submitted feedback"
+    }
+  },
+  "required": [
+    "feedback_type",
+    "user_message"
+  ]
+}

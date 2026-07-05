@@ -1,0 +1,39 @@
+{
+  "name": "VATRate",
+  "type": "object",
+  "properties": {
+    "country": {
+      "type": "string",
+      "description": "Country name"
+    },
+    "country_code": {
+      "type": "string",
+      "description": "ISO country code"
+    },
+    "standard_rate": {
+      "type": "number",
+      "description": "Standard VAT rate percentage"
+    },
+    "reduced_rate": {
+      "type": "number",
+      "description": "Reduced VAT rate percentage"
+    },
+    "zero_rate_applies": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether zero-rate VAT exists"
+    },
+    "vat_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Alternative names for VAT (TVA, MwSt, etc.)"
+    }
+  },
+  "required": [
+    "country",
+    "country_code",
+    "standard_rate"
+  ]
+}

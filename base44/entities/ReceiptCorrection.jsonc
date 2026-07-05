@@ -1,0 +1,36 @@
+{
+  "name": "ReceiptCorrection",
+  "type": "object",
+  "properties": {
+    "receipt_id": {
+      "type": "string",
+      "description": "ID of the corrected receipt"
+    },
+    "field_name": {
+      "type": "string",
+      "description": "Name of corrected field"
+    },
+    "original_value": {
+      "type": "string",
+      "description": "Original AI-extracted value"
+    },
+    "corrected_value": {
+      "type": "string",
+      "description": "Admin-corrected value"
+    },
+    "correction_reason": {
+      "type": "string",
+      "description": "Explanation for the correction"
+    },
+    "corrected_by": {
+      "type": "string",
+      "description": "Email of admin who made correction"
+    }
+  },
+  "required": [
+    "receipt_id",
+    "field_name",
+    "original_value",
+    "corrected_value"
+  ]
+}
