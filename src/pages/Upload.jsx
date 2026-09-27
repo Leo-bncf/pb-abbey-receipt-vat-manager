@@ -17,6 +17,14 @@ import { createPageUrl } from '@/utils';
 // Strip that suffix to recover the original document name.
 const baseDocName = (fileName) => (fileName || '').replace(/\s*\[\d+\/\d+\]\s*$/, '').trim();
 
+// Pull the expected date window from an expense file name, e.g.
+// "…_PB Abbey_August-September 2026.pdf" -> "August-September 2026". Used to
+// pin the year so the OCR model doesn't mis-read faint dates into wrong years.
+const periodFromName = (fileName) => {
+  const m = (fileName || '').match(/([A-Za-z]+(?:-[A-Za-z]+)?\s+\d{4})\s*(?:\[[^\]]*\])?\.?[a-z0-9]*$/i);
+  return m ? m[1].trim() : '';
+};
+
 // Cloudflare Worker that runs Mistral OCR + structuring with our own key
 // (base44 no longer in the AI path). Falls back to base44 InvokeLLM if down.
 const MISTRAL_WORKER_URL = 'https://pb-abbey-mistral.leo-bncf.workers.dev';
@@ -359,7 +367,9 @@ export default function Upload() {
       const resp = await fetch(MISTRAL_WORKER_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file_url: fileUrl, prompt: extractionPrompt }),
+        // period (parsed from the file name, e.g. "August-September 2026") pins
+        // the year so faint dates aren't mis-read into the wrong year.
+        body: JSON.stringify({ file_url: fileUrl, prompt: extractionPrompt, period: periodFromName(fileName) }),
       });
       if (!resp.ok) throw new Error(`Worker HTTP ${resp.status}`);
       const payload = await resp.json();

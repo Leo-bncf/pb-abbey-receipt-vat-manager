@@ -95,7 +95,15 @@ export default {
     }
     const fileUrl = body.file_url;
     const userPrompt = body.prompt || "";
+    const period = body.period || ""; // e.g. "August-September 2026" — expected date window
     if (!fileUrl) return json({ error: "file_url is required" }, 400, origin);
+
+    const periodRule = period
+      ? `IMPORTANT DATE CONSTRAINT: every receipt in this document is from ${period}. ` +
+        `Each receipt_date MUST fall within ${period}. If your reading gives a date outside that ` +
+        `window (especially a different year like 2023/2024/2025), you mis-read it — correct the ` +
+        `year (and month if needed) so it fits ${period}. `
+      : "";
 
     try {
       // 1) OCR every page.
@@ -114,6 +122,7 @@ export default {
         if (!text) return [];
         const instructions =
           (userPrompt ? userPrompt + "\n\n" : "") +
+          periodRule +
           `The following is the OCR text of PAGE ${idx + 1} of a document. It may contain ONE or MORE ` +
           `separate till receipts / tickets. Extract EVERY distinct receipt on this page — never skip ` +
           `one and never merge two into one. Set receipt_location to "page ${idx + 1}". ` +
