@@ -29,14 +29,14 @@ function json(obj, status, origin) {
   });
 }
 
-async function withRetry(fn, attempts = 3) {
+async function withRetry(fn, attempts = 4) {
   let last;
   for (let i = 0; i < attempts; i++) {
     try {
       return await fn();
     } catch (e) {
       last = e;
-      if (i < attempts - 1) await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+      if (i < attempts - 1) await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
     }
   }
   throw last;
@@ -124,8 +124,9 @@ export default {
       }
 
       // 2) Structure each page separately so no receipt is dropped.
-      //    Concurrency 6 keeps long docs fast while staying under rate limits.
-      const perPage = await mapLimit(pages, 6, async (p, idx) => {
+      //    Concurrency 3 keeps well under Mistral rate limits even with 2 passes.
+      const pageErrors = [];
+      const perPage = await mapLimit(pages, 3, async (p, idx) => {
         const text = (p?.markdown || "").trim();
         if (!text) return [];
         const instructions =
@@ -140,24 +141,44 @@ export default {
           SCHEMA_HINT +
           `\n\nPAGE ${idx + 1} OCR TEXT:\n` +
           text;
-        try {
+        const runChat = async (content) => {
           const chat = await withRetry(() =>
             mistralJson(CHAT, apiKey, {
               model: "mistral-large-latest",
               temperature: 0,
               max_tokens: 8000,
               response_format: { type: "json_object" },
-              messages: [{ role: "user", content: instructions }],
+              messages: [{ role: "user", content }],
             })
           );
           const parsed = JSON.parse(chat?.choices?.[0]?.message?.content || "{}");
           return Array.isArray(parsed.receipts) ? parsed.receipts : [];
-        } catch (_e) {
+        };
+        try {
+          const first = await runChat(instructions);
+          // Pass 2: gap-finder for receipts missed on dense pages.
+          const found = first.map((r) => `${r.vendor_name || "?"} / ${r.total_amount ?? "?"}`).join("; ");
+          const gapInstr =
+            periodRule +
+            `Below is the OCR text of PAGE ${idx + 1}. These receipts were ALREADY extracted: ` +
+            `[${found}]. Re-read the text and return ONLY receipts present but NOT already in that ` +
+            `list (a different store, or same store with a different TOTAL). If none are missing, ` +
+            `return {"receipts":[]}. Set receipt_location to "page ${idx + 1}". ` +
+            SCHEMA_HINT + `\n\nPAGE ${idx + 1} OCR TEXT:\n` + text;
+          let extra = [];
+          try { extra = await runChat(gapInstr); } catch (e) { pageErrors.push(`p${idx + 1} pass2: ${String(e?.message || e).slice(0, 80)}`); }
+          const key = (r) => `${(r.vendor_name || "").toLowerCase().trim()}|${r.total_amount ?? ""}`;
+          const seen = new Set(first.map(key));
+          const merged = [...first];
+          for (const r of extra) if (!seen.has(key(r))) { seen.add(key(r)); merged.push(r); }
+          return merged;
+        } catch (e) {
+          pageErrors.push(`p${idx + 1} pass1: ${String(e?.message || e).slice(0, 80)}`);
           return [];
         }
       });
 
-      return json({ receipts: perPage.flat(), ocr_pages: pages.length }, 200, origin);
+      return json({ receipts: perPage.flat(), ocr_pages: pages.length, errors: pageErrors }, 200, origin);
     } catch (e) {
       return json({ error: String(e?.message || e) }, 502, origin);
     }

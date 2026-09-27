@@ -29,3 +29,9 @@ dist-ssr
 
 .env
 base44/.app.jsonc
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
