@@ -115,6 +115,14 @@ export default {
       );
       const pages = ocr.pages || [];
 
+      // Debug: return raw OCR text per page (no structuring) to inspect coverage.
+      if (body.debug) {
+        return json({
+          ocr_pages: pages.length,
+          pagesDebug: pages.map((p, i) => ({ page: i + 1, len: (p?.markdown || "").length, markdown: p?.markdown || "" })),
+        }, 200, origin);
+      }
+
       // 2) Structure each page separately so no receipt is dropped.
       //    Concurrency 6 keeps long docs fast while staying under rate limits.
       const perPage = await mapLimit(pages, 6, async (p, idx) => {
@@ -123,9 +131,12 @@ export default {
         const instructions =
           (userPrompt ? userPrompt + "\n\n" : "") +
           periodRule +
-          `The following is the OCR text of PAGE ${idx + 1} of a document. It may contain ONE or MORE ` +
-          `separate till receipts / tickets. Extract EVERY distinct receipt on this page — never skip ` +
-          `one and never merge two into one. Set receipt_location to "page ${idx + 1}". ` +
+          `The following is the OCR text of PAGE ${idx + 1} of a document. This page usually has ` +
+          `SEVERAL separate till receipts pasted on it. FIRST count how many distinct receipts are on ` +
+          `the page — each one has its own store name/header and its own TOTAL line (count the TOTAL ` +
+          `lines). THEN output exactly that many objects, one per receipt. Do NOT stop early, do NOT ` +
+          `merge two receipts, do NOT skip small ones. It is better to return more receipts than to ` +
+          `miss any. Set receipt_location to "page ${idx + 1}". ` +
           SCHEMA_HINT +
           `\n\nPAGE ${idx + 1} OCR TEXT:\n` +
           text;
@@ -134,6 +145,7 @@ export default {
             mistralJson(CHAT, apiKey, {
               model: "mistral-large-latest",
               temperature: 0,
+              max_tokens: 8000,
               response_format: { type: "json_object" },
               messages: [{ role: "user", content: instructions }],
             })
