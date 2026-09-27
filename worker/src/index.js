@@ -124,10 +124,10 @@ export default {
       }
 
       // 2) Structure each page separately so no receipt is dropped.
-      //    Concurrency 8 (Workers Paid lifts the subrequest cap to 1000) — much
-      //    faster on long docs while staying within Mistral paid-tier limits.
+      //    Concurrency 3: proven 0 errors on doc 57 (68 receipts). Higher (8)
+      //    trips Mistral's rate limit (429) and drops receipts. Reliability wins.
       const pageErrors = [];
-      const perPage = await mapLimit(pages, 8, async (p, idx) => {
+      const perPage = await mapLimit(pages, 3, async (p, idx) => {
         const text = (p?.markdown || "").trim();
         if (!text) return [];
         const instructions =
