@@ -17,6 +17,11 @@ import { createPageUrl } from '@/utils';
 // Strip that suffix to recover the original document name.
 const baseDocName = (fileName) => (fileName || '').replace(/\s*\[\d+\/\d+\]\s*$/, '').trim();
 
+// Cloudflare Worker that runs Mistral OCR + structuring with our own key.
+// Set this to the URL printed by `wrangler deploy` (worker/README.md). While
+// empty, scans fall back to base44's InvokeLLM.
+const MISTRAL_WORKER_URL = '';
+
 // True for base44's monthly AI/integration credit limit (HTTP 402). Retrying
 // or continuing the batch is pointless — the account is out of credits.
 const isCreditLimitError = (e) => {
@@ -318,10 +323,10 @@ export default function Upload() {
     - When uncertain, default to the most common pattern from training data
     - Double-check your extraction against the training rules before returning`;
 
-    // Primary scan path: our Mistral backend function (OCR every page → structured
-    // JSON), which has no base44 model/credit limits and reads all pages of long
-    // PDFs. Falls back to base44's InvokeLLM if the function errors, so uploads
-    // never break.
+    // Primary scan path: our Mistral Cloudflare Worker (OCR every page →
+    // structured JSON per page), which uses our own Mistral key and keeps base44
+    // out of the AI path (no function-capability / credit limits). Falls back to
+    // base44's InvokeLLM if the Worker is unreachable, so uploads never break.
     const responseSchema = {
       type: 'object',
       properties: {
@@ -351,18 +356,20 @@ export default function Upload() {
 
     let result;
     try {
-      const fn = await base44.functions.invoke('extractReceiptsMistral', {
-        file_url: fileUrl,
-        prompt: extractionPrompt,
+      if (!MISTRAL_WORKER_URL) throw new Error('Mistral worker URL not configured');
+      const resp = await fetch(MISTRAL_WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_url: fileUrl, prompt: extractionPrompt }),
       });
-      // invoke() may wrap the payload under `.data`
-      const payload = fn?.data ?? fn;
+      if (!resp.ok) throw new Error(`Worker HTTP ${resp.status}`);
+      const payload = await resp.json();
       if (!payload || payload.error || !Array.isArray(payload.receipts)) {
-        throw new Error(payload?.error || 'Mistral function returned no receipts');
+        throw new Error(payload?.error || 'Worker returned no receipts');
       }
       result = payload;
-    } catch (mistralErr) {
-      console.warn('Mistral scan failed, falling back to base44 InvokeLLM:', mistralErr?.message || mistralErr);
+    } catch (workerErr) {
+      console.warn('Mistral worker failed, falling back to base44 InvokeLLM:', workerErr?.message || workerErr);
       result = await base44.integrations.Core.InvokeLLM({
         prompt: extractionPrompt,
         file_urls: [fileUrl],
