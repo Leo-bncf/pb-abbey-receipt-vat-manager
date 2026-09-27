@@ -17,10 +17,9 @@ import { createPageUrl } from '@/utils';
 // Strip that suffix to recover the original document name.
 const baseDocName = (fileName) => (fileName || '').replace(/\s*\[\d+\/\d+\]\s*$/, '').trim();
 
-// Cloudflare Worker that runs Mistral OCR + structuring with our own key.
-// Set this to the URL printed by `wrangler deploy` (worker/README.md). While
-// empty, scans fall back to base44's InvokeLLM.
-const MISTRAL_WORKER_URL = '';
+// Cloudflare Worker that runs Mistral OCR + structuring with our own key
+// (base44 no longer in the AI path). Falls back to base44 InvokeLLM if down.
+const MISTRAL_WORKER_URL = 'https://pb-abbey-mistral.leo-bncf.workers.dev';
 
 // True for base44's monthly AI/integration credit limit (HTTP 402). Retrying
 // or continuing the batch is pointless — the account is out of credits.

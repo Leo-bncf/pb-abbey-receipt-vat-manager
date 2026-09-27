@@ -1,6 +1,7 @@
 name = "pb-abbey-mistral"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
+account_id = "18d991de07abf6a8c35cb04cdb9b940e"
 
 # Secret (set once, not stored here):
 #   wrangler secret put MISTRAL_API_KEY
