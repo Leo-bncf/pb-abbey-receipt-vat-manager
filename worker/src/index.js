@@ -72,9 +72,11 @@ const SCHEMA_HINT =
   `"ocr_text": string, "extraction_notes": string, "confidence_score": number, ` +
   `"receipt_location": string } ] }. If the page has no receipt, return { "receipts": [] }. ` +
   `RULES: vendor_name = the clean business name ONLY (no parentheses, no notes, no commentary — ` +
-  `put any uncertainty in extraction_notes instead). receipt_date = exactly as printed, read the ` +
-  `year digits carefully (these are recent receipts, not from years ago). Put doubts/guesses in ` +
-  `extraction_notes, never inside vendor_name or the numeric fields.`;
+  `put any uncertainty in extraction_notes instead). receipt_date = exactly as printed in YYYY-MM-DD. ` +
+  `Read the YEAR digits very carefully: these are recent receipts, so the year is the current year or ` +
+  `the one before. A year that reads as 2006, 2016, 2023, 2025 etc. on an otherwise recent receipt is ` +
+  `almost always a mis-read of a 202x year — re-read it before trusting it. Never invent a total or VAT; ` +
+  `if a number is unreadable leave it and note it in extraction_notes.`;
 
 export default {
   async fetch(request, env) {
@@ -106,7 +108,8 @@ export default {
       const pages = ocr.pages || [];
 
       // 2) Structure each page separately so no receipt is dropped.
-      const perPage = await mapLimit(pages, 4, async (p, idx) => {
+      //    Concurrency 6 keeps long docs fast while staying under rate limits.
+      const perPage = await mapLimit(pages, 6, async (p, idx) => {
         const text = (p?.markdown || "").trim();
         if (!text) return [];
         const instructions =
