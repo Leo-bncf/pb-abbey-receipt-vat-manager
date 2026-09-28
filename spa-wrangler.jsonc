@@ -1,0 +1,6 @@
+{
+  "name": "pb-abbey-app",
+  "account_id": "18d991de07abf6a8c35cb04cdb9b940e",
+  "compatibility_date": "2026-09-26",
+  "assets": { "directory": "./dist", "not_found_handling": "single-page-application" }
+}
