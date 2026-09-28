@@ -155,23 +155,28 @@ export default {
           const parsed = JSON.parse(chat?.choices?.[0]?.message?.content || "{}");
           return Array.isArray(parsed.receipts) ? parsed.receipts : [];
         };
+        const key = (r) => `${(r.vendor_name || "").toLowerCase().trim()}|${r.total_amount ?? ""}`;
         try {
-          const first = await runChat(instructions);
-          // Pass 2: gap-finder for receipts missed on dense pages.
-          const found = first.map((r) => `${r.vendor_name || "?"} / ${r.total_amount ?? "?"}`).join("; ");
-          const gapInstr =
-            periodRule +
-            `Below is the OCR text of PAGE ${idx + 1}. These receipts were ALREADY extracted: ` +
-            `[${found}]. Re-read the text and return ONLY receipts present but NOT already in that ` +
-            `list (a different store, or same store with a different TOTAL). If none are missing, ` +
-            `return {"receipts":[]}. Set receipt_location to "page ${idx + 1}". ` +
-            SCHEMA_HINT + `\n\nPAGE ${idx + 1} OCR TEXT:\n` + text;
-          let extra = [];
-          try { extra = await runChat(gapInstr); } catch (e) { pageErrors.push(`p${idx + 1} pass2: ${String(e?.message || e).slice(0, 80)}`); }
-          const key = (r) => `${(r.vendor_name || "").toLowerCase().trim()}|${r.total_amount ?? ""}`;
-          const seen = new Set(first.map(key));
-          const merged = [...first];
-          for (const r of extra) if (!seen.has(key(r))) { seen.add(key(r)); merged.push(r); }
+          const merged = await runChat(instructions);
+          const seen = new Set(merged.map(key));
+          // Gap-finder: keep re-reading the SAME page for receipts missed so far,
+          // until a pass finds nothing new (dense pages need a few rounds).
+          // Up to 3 extra passes (Workers Paid lifts the subrequest cap).
+          for (let pass = 0; pass < 3; pass++) {
+            const found = merged.map((r) => `${r.vendor_name || "?"} / ${r.total_amount ?? "?"}`).join("; ");
+            const gapInstr =
+              periodRule +
+              `Below is the OCR text of PAGE ${idx + 1}. These receipts were ALREADY extracted: ` +
+              `[${found}]. Re-read the text and return ONLY receipts present but NOT already in that ` +
+              `list (a different store, or same store with a different TOTAL). If none are missing, ` +
+              `return {"receipts":[]}. Set receipt_location to "page ${idx + 1}". ` +
+              SCHEMA_HINT + `\n\nPAGE ${idx + 1} OCR TEXT:\n` + text;
+            let extra = [];
+            try { extra = await runChat(gapInstr); } catch (e) { pageErrors.push(`p${idx + 1} gap: ${String(e?.message || e).slice(0, 60)}`); break; }
+            const newOnes = extra.filter((r) => !seen.has(key(r)));
+            if (newOnes.length === 0) break; // converged
+            for (const r of newOnes) { seen.add(key(r)); merged.push(r); }
+          }
           return merged;
         } catch (e) {
           pageErrors.push(`p${idx + 1} pass1: ${String(e?.message || e).slice(0, 80)}`);
