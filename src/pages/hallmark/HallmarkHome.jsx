@@ -1,43 +1,33 @@
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import {
-  Home, Users, Wallet, AlertTriangle, CheckCircle, ArrowLeft, Building2, Loader2,
-} from 'lucide-react';
+import { CheckCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { base44 } from '@/api/base44Client';
 
 const gbp = (n) => `£${(Number(n) || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB') : '—');
 
 const statusStyle = {
-  paid: 'bg-green-100 text-green-700',
-  part_paid: 'bg-amber-100 text-amber-700',
-  overdue: 'bg-red-100 text-red-700',
-  pending: 'bg-slate-100 text-slate-600',
+  paid: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+  part_paid: 'text-amber-700 bg-amber-50 border-amber-200',
+  overdue: 'text-red-700 bg-red-50 border-red-200',
+  pending: 'text-stone-600 bg-stone-100 border-stone-200',
 };
 
-const COLORS = {
-  indigo: 'bg-indigo-100 text-indigo-600',
-  blue: 'bg-blue-100 text-blue-600',
-  emerald: 'bg-emerald-100 text-emerald-600',
-  red: 'bg-red-100 text-red-600',
-};
-
-function Stat({ icon: Icon, label, value, color = 'indigo', sub }) {
-  const c = COLORS[color] || COLORS.indigo;
+function Stat({ label, value, sub, accent }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${c}`}>
-        <Icon className="w-5 h-5" />
-      </div>
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="text-2xl font-bold text-slate-800">{value}</p>
-      {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
+    <div className="bg-white border border-stone-900/10 rounded-xl p-6">
+      <p className="text-[11px] uppercase tracking-[0.15em] text-stone-400 mb-3">{label}</p>
+      <p className={`font-display text-3xl font-semibold ${accent ? 'text-red-600' : 'text-stone-900'}`}>{value}</p>
+      {sub && <p className="text-xs text-stone-400 mt-1">{sub}</p>}
     </div>
   );
 }
+
+const Th = ({ children, right }) => (
+  <th className={`px-6 py-3 text-[11px] uppercase tracking-[0.12em] font-medium text-stone-400 ${right ? 'text-right' : 'text-left'}`}>{children}</th>
+);
 
 export default function HallmarkHome() {
   const qc = useQueryClient();
@@ -62,64 +52,53 @@ export default function HallmarkHome() {
   }, [units, payments]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Hallmark header */}
-      <div className="bg-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-              <Home className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight">HALLMARK</h1>
-              <p className="text-xs text-slate-400">Property Management</p>
-            </div>
+    <div className="min-h-screen bg-background text-stone-900">
+      {/* Ink header */}
+      <div className="bg-stone-950 text-white">
+        <div className="max-w-6xl mx-auto px-6 py-6 flex items-end justify-between">
+          <div>
+            <div className="h-px w-10 bg-brand mb-4" />
+            <h1 className="font-display text-3xl font-semibold tracking-tight">Hallmark</h1>
+            <p className="text-xs tracking-[0.2em] uppercase text-white/40 mt-1">Property Management</p>
           </div>
-          <Link to="/"><Button variant="ghost" className="text-slate-300 hover:text-white gap-2"><ArrowLeft className="w-4 h-4" /> Hub</Button></Link>
+          <Link to="/" className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Hub
+          </Link>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-6 py-10">
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Stat icon={Building2} label="Units" value={units.length} sub={`${stats.occupied} occupied`} color="indigo" />
-          <Stat icon={Users} label="Tenants" value={tenants.length} color="blue" />
-          <Stat icon={Wallet} label="Monthly rent (net)" value={gbp(stats.monthlyRent)} color="emerald" />
-          <Stat icon={AlertTriangle} label="Overdue" value={gbp(stats.overdueTotal)} sub={`${stats.overdueCount} payment(s)`} color={stats.overdueTotal > 0 ? 'red' : 'emerald'} />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+          <Stat label="Units" value={units.length} sub={`${stats.occupied} occupied`} />
+          <Stat label="Tenants" value={tenants.length} />
+          <Stat label="Monthly rent (net)" value={gbp(stats.monthlyRent)} />
+          <Stat label="Overdue" value={gbp(stats.overdueTotal)} sub={`${stats.overdueCount} payment(s)`} accent={stats.overdueTotal > 0} />
         </div>
 
         {/* Rent payments */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-8">
-          <div className="px-6 py-4 border-b border-slate-200">
-            <h2 className="font-semibold text-slate-800">Rent payments</h2>
-          </div>
+        <h2 className="font-display text-xl font-semibold text-stone-900 mb-3">Rent payments</h2>
+        <div className="bg-white border border-stone-900/10 rounded-xl overflow-hidden mb-12">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500">
-                <tr>
-                  <th className="px-6 py-3 text-left font-medium">Tenant</th>
-                  <th className="px-6 py-3 text-left font-medium">Period</th>
-                  <th className="px-6 py-3 text-left font-medium">Due</th>
-                  <th className="px-6 py-3 text-right font-medium">Net</th>
-                  <th className="px-6 py-3 text-right font-medium">VAT</th>
-                  <th className="px-6 py-3 text-right font-medium">Total</th>
-                  <th className="px-6 py-3 text-left font-medium">Status</th>
-                  <th className="px-6 py-3"></th>
-                </tr>
+              <thead className="border-b border-stone-900/10">
+                <tr><Th>Tenant</Th><Th>Period</Th><Th>Due</Th><Th right>Net</Th><Th right>VAT</Th><Th right>Total</Th><Th>Status</Th><Th></Th></tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-stone-900/5">
                 {payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-3 font-medium text-slate-800">{p.tenant_name}</td>
-                    <td className="px-6 py-3 text-slate-500">{fmtDate(p.period_start)} → {fmtDate(p.period_end)}</td>
-                    <td className="px-6 py-3 text-slate-500">{fmtDate(p.due_date)}</td>
-                    <td className="px-6 py-3 text-right">{gbp(p.net_amount)}</td>
-                    <td className="px-6 py-3 text-right">{gbp(p.vat_amount)}</td>
-                    <td className="px-6 py-3 text-right font-semibold">{gbp(p.total_amount)}</td>
-                    <td className="px-6 py-3"><Badge className={statusStyle[p.status] || statusStyle.pending}>{p.status}</Badge></td>
-                    <td className="px-6 py-3 text-right">
+                  <tr key={p.id} className="hover:bg-stone-50/70">
+                    <td className="px-6 py-4 font-medium">{p.tenant_name}</td>
+                    <td className="px-6 py-4 text-stone-500">{fmtDate(p.period_start)} → {fmtDate(p.period_end)}</td>
+                    <td className="px-6 py-4 text-stone-500">{fmtDate(p.due_date)}</td>
+                    <td className="px-6 py-4 text-right tabular-nums">{gbp(p.net_amount)}</td>
+                    <td className="px-6 py-4 text-right tabular-nums text-stone-500">{gbp(p.vat_amount)}</td>
+                    <td className="px-6 py-4 text-right tabular-nums font-semibold">{gbp(p.total_amount)}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs border ${statusStyle[p.status] || statusStyle.pending}`}>{p.status}</span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
                       {p.status !== 'paid' && (
-                        <Button size="sm" variant="outline" className="gap-1 text-green-700 border-green-200 hover:bg-green-50"
+                        <Button size="sm" variant="outline" className="gap-1 border-stone-300 hover:bg-stone-900 hover:text-white transition-colors"
                           disabled={markPaid.isPending} onClick={() => markPaid.mutate(p)}>
                           {markPaid.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
                           Mark paid
@@ -129,7 +108,7 @@ export default function HallmarkHome() {
                   </tr>
                 ))}
                 {payments.length === 0 && (
-                  <tr><td colSpan={8} className="px-6 py-10 text-center text-slate-400">No rent payments yet</td></tr>
+                  <tr><td colSpan={8} className="px-6 py-12 text-center text-stone-400">No rent payments yet</td></tr>
                 )}
               </tbody>
             </table>
@@ -137,30 +116,22 @@ export default function HallmarkHome() {
         </div>
 
         {/* Units & tenants */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-200">
-            <h2 className="font-semibold text-slate-800">Units &amp; tenants</h2>
-          </div>
+        <h2 className="font-display text-xl font-semibold text-stone-900 mb-3">Units &amp; tenants</h2>
+        <div className="bg-white border border-stone-900/10 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-slate-500">
-                <tr>
-                  <th className="px-6 py-3 text-left font-medium">Unit</th>
-                  <th className="px-6 py-3 text-left font-medium">Address</th>
-                  <th className="px-6 py-3 text-left font-medium">Tenant</th>
-                  <th className="px-6 py-3 text-right font-medium">Rent</th>
-                  <th className="px-6 py-3 text-left font-medium">Status</th>
-                </tr>
+              <thead className="border-b border-stone-900/10">
+                <tr><Th>Unit</Th><Th>Address</Th><Th>Tenant</Th><Th right>Rent</Th><Th>Status</Th></tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-stone-900/5">
                 {units.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-3 font-medium text-slate-800">{u.reference}</td>
-                    <td className="px-6 py-3 text-slate-500">{u.address}</td>
-                    <td className="px-6 py-3 text-slate-600">{u.tenant_name || '—'}</td>
-                    <td className="px-6 py-3 text-right">{gbp(u.rent_amount)}</td>
-                    <td className="px-6 py-3">
-                      <Badge className={u.status === 'occupied' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}>{u.status}</Badge>
+                  <tr key={u.id} className="hover:bg-stone-50/70">
+                    <td className="px-6 py-4 font-medium">{u.reference}</td>
+                    <td className="px-6 py-4 text-stone-500">{u.address}</td>
+                    <td className="px-6 py-4 text-stone-600">{u.tenant_name || '—'}</td>
+                    <td className="px-6 py-4 text-right tabular-nums">{gbp(u.rent_amount)}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs border ${u.status === 'occupied' ? statusStyle.paid : statusStyle.pending}`}>{u.status}</span>
                     </td>
                   </tr>
                 ))}

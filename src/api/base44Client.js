@@ -130,6 +130,8 @@ export const base44 = {
     AuditLog: table('audit_logs'),
   },
   auth: { me, logout, isAuthenticated, redirectToLogin },
+  // No-op activity logging (base44 feature not needed self-hosted)
+  appLogs: { logUserInApp: async () => {} },
   integrations: {
     Core: {
       UploadFile,

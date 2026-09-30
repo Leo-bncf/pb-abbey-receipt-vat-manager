@@ -125,7 +125,7 @@ export default function Admin() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center gap-4 mb-8">
@@ -133,7 +133,7 @@ export default function Admin() {
             <Shield className="w-6 h-6 text-indigo-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Admin Panel</h1>
+            <h1 className="font-display text-3xl font-semibold text-stone-900">Admin Panel</h1>
             <p className="text-slate-500">Review receipts and train AI accuracy</p>
           </div>
         </div>

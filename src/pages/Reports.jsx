@@ -392,7 +392,7 @@ export default function Reports() {
   const formatCurrency = (value) => `£${(value || 0).toFixed(2)}`;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -401,7 +401,7 @@ export default function Reports() {
               <FileSpreadsheet className="w-6 h-6 text-indigo-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">VAT Reports</h1>
+              <h1 className="font-display text-3xl font-semibold text-stone-900">VAT Reports</h1>
               <p className="text-slate-500">Generate and export VAT summaries</p>
             </div>
           </div>
@@ -472,7 +472,7 @@ export default function Reports() {
               </div>
             </div>
             <p className="text-sm text-slate-500 mb-1">Total Spend</p>
-            <p className="text-2xl font-bold text-slate-800">{formatCurrency(summary.totalAmount)}</p>
+            <p className="font-display text-3xl font-semibold text-stone-900">{formatCurrency(summary.totalAmount)}</p>
           </motion.div>
 
           <motion.div
@@ -502,7 +502,7 @@ export default function Reports() {
               </div>
             </div>
             <p className="text-sm text-slate-500 mb-1">Vendors</p>
-            <p className="text-2xl font-bold text-slate-800">{summary.uniqueVendors}</p>
+            <p className="font-display text-3xl font-semibold text-stone-900">{summary.uniqueVendors}</p>
           </motion.div>
 
           <motion.div
@@ -517,7 +517,7 @@ export default function Reports() {
               </div>
             </div>
             <p className="text-sm text-slate-500 mb-1">Countries</p>
-            <p className="text-2xl font-bold text-slate-800">{summary.uniqueCountries}</p>
+            <p className="font-display text-3xl font-semibold text-stone-900">{summary.uniqueCountries}</p>
           </motion.div>
         </div>
 

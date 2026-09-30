@@ -43,7 +43,7 @@ export default function Layout({ children, currentPageName }) {
   const filteredNav = navigation.filter(item => !item.adminOnly || isAdmin);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background">
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-slate-200">
         <div className="flex items-center justify-between px-4 py-3">
@@ -52,8 +52,8 @@ export default function Layout({ children, currentPageName }) {
               <Building2 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="font-bold text-slate-800 text-sm">PB ABBEY LTD</h1>
-              <p className="text-xs text-slate-500">Receipt Manager</p>
+              <h1 className="font-display font-semibold text-stone-900 text-base">PB Abbey</h1>
+              <p className="text-xs text-slate-500">Receipts & VAT</p>
             </div>
           </div>
           <button
@@ -138,8 +138,8 @@ export default function Layout({ children, currentPageName }) {
                 <Building2 className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="font-bold text-slate-800">PB ABBEY LTD</h1>
-                <p className="text-xs text-slate-500">Receipt Manager</p>
+                <h1 className="font-display font-semibold text-stone-900 text-lg">PB Abbey</h1>
+                <p className="text-xs text-slate-500">Receipts & VAT</p>
               </div>
             </div>
           </div>

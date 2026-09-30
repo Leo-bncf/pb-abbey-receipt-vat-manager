@@ -690,7 +690,7 @@ export default function Upload() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+    <div className="min-h-screen bg-background">
       <div className="max-w-4xl mx-auto px-6 py-12">
         {/* base44 AI credit limit reached */}
         {limitReached && (
@@ -715,7 +715,7 @@ export default function Upload() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-100 mb-6">
             <FileText className="w-8 h-8 text-indigo-600" />
           </div>
-          <h1 className="text-3xl font-bold text-slate-800 mb-3">
+          <h1 className="font-display text-4xl font-semibold text-stone-900 mb-3">
             Upload Receipts
           </h1>
           <p className="text-slate-500 max-w-md mx-auto mb-6">
@@ -817,7 +817,7 @@ export default function Upload() {
 
               <div className="grid grid-cols-3 gap-4 mb-8">
                 <div className="text-center p-4 bg-slate-50 rounded-xl">
-                  <p className="text-2xl font-bold text-slate-800">
+                  <p className="font-display text-3xl font-semibold text-stone-900">
                     {processedFiles.filter(f => f.success).length}
                   </p>
                   <p className="text-sm text-slate-500">Receipts</p>
