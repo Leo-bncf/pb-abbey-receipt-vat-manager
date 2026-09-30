@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  LayoutDashboard, Upload, FileSpreadsheet, Shield, 
-  Menu, X, LogOut, ChevronRight, Building2
+  LayoutDashboard, Upload, FileSpreadsheet, Shield,
+  Menu, X, LogOut, ChevronRight, Building2, Home
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 
 const navigation = [
+  { name: 'Hub', icon: Home, path: '/' },
   { name: 'Dashboard', icon: LayoutDashboard, page: 'Dashboard' },
   { name: 'Upload', icon: Upload, page: 'Upload' },
   { name: 'Reports', icon: FileSpreadsheet, page: 'Reports' },
@@ -80,7 +81,7 @@ export default function Layout({ children, currentPageName }) {
                   return (
                     <Link
                       key={item.name}
-                      to={createPageUrl(item.page)}
+                      to={item.path || createPageUrl(item.page)}
                       onClick={() => setIsSidebarOpen(false)}
                       className={`
                         flex items-center gap-3 px-4 py-3 rounded-xl transition-all
@@ -150,7 +151,7 @@ export default function Layout({ children, currentPageName }) {
               return (
                 <Link
                   key={item.name}
-                  to={createPageUrl(item.page)}
+                  to={item.path || createPageUrl(item.page)}
                   className={`
                     group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
                     ${isActive 

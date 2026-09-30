@@ -9,6 +9,8 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import LoginForm from '@/components/LoginForm';
+import Hub from '@/pages/Hub';
+import HallmarkHome from '@/pages/hallmark/HallmarkHome';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -38,11 +40,11 @@ const AuthenticatedApp = () => {
   // Render the main app
   return (
     <Routes>
-      <Route path="/" element={
-        <LayoutWrapper currentPageName={mainPageKey}>
-          <MainPage />
-        </LayoutWrapper>
-      } />
+      {/* Hub landing */}
+      <Route path="/" element={<Hub />} />
+      {/* Hallmark — property management */}
+      <Route path="/hallmark" element={<HallmarkHome />} />
+      {/* Scanner (Receipts & VAT) pages with their layout */}
       {Object.entries(Pages).map(([path, Page]) => (
         <Route
           key={path}
