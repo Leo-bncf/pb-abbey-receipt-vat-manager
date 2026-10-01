@@ -18,7 +18,7 @@ import { format, startOfMonth, subMonths } from 'date-fns';
 import * as XLSX from 'xlsx';
 
 // Professional chart palette: navy + slate tones
-const COLORS = ['#243b6b', '#3b5a9a', '#64748b', '#94a3b8', '#cbd5e1', '#1e293b', '#475569'];
+const COLORS = ['#171717', '#525252', '#737373', '#a3a3a3', '#d4d4d4', '#404040', '#8a8a8a'];
 
 export default function Reports() {
   // Single scope: a folder ('all', 'root', or a folder id) — chosen like the
@@ -382,14 +382,14 @@ export default function Reports() {
     <AppShell title="Reports" subtitle="Generate and export VAT summaries">
       <div className="max-w-full">
         {/* Document picker + export */}
-        <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-5 mb-8">
+        <div className="bg-white border border-neutral-200 rounded-lg p-5 mb-8">
           <div className="flex items-center justify-between gap-4 mb-4">
             <div>
-              <p className="text-sm font-semibold text-slate-900">Choose a document to report on</p>
-              <p className="text-xs text-slate-500">Select a folder from your repository, then export.</p>
+              <p className="text-sm font-semibold text-neutral-900">Choose a document to report on</p>
+              <p className="text-xs text-neutral-500">Select a folder from your repository, then export.</p>
             </div>
             <div className="flex gap-2 shrink-0">
-              <Button onClick={() => runExport('xlsx')} disabled={isExporting} className="bg-brand hover:opacity-90 text-white gap-2 disabled:opacity-50">
+              <Button onClick={() => runExport('xlsx')} disabled={isExporting} className="bg-neutral-900 hover:bg-neutral-800 text-white gap-2 disabled:opacity-50">
                 <Download className="w-4 h-4" /> {isExporting ? 'Exporting…' : 'Excel'}
               </Button>
               <Button onClick={() => runExport('csv')} disabled={isExporting} variant="outline" className="gap-2 disabled:opacity-50">
@@ -406,10 +406,10 @@ export default function Reports() {
                 return (
                   <button key={opt.id} onClick={() => setExportFolder(opt.id)}
                     className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                      active ? 'border-brand bg-brand/5 text-brand font-medium' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}>
-                    <Folder className={`w-4 h-4 ${active ? 'text-brand' : 'text-slate-400'}`} />
+                      active ? 'border-brand bg-neutral-50 text-neutral-700 font-medium' : 'border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300'}`}>
+                    <Folder className={`w-4 h-4 ${active ? 'text-neutral-700' : 'text-neutral-400'}`} />
                     {opt.name}
-                    <span className={`text-xs ${active ? 'text-brand/70' : 'text-slate-400'}`}>{opt.n}</span>
+                    <span className={`text-xs ${active ? 'text-neutral-700/70' : 'text-neutral-400'}`}>{opt.n}</span>
                   </button>
                 );
               })}
@@ -435,7 +435,7 @@ export default function Reports() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-stone-900" />
+                  <TrendingUp className="w-5 h-5 text-neutral-900" />
                   Monthly VAT Trend
                 </CardTitle>
               </CardHeader>
@@ -454,18 +454,18 @@ export default function Reports() {
                       <Line 
                         type="monotone" 
                         dataKey="vat" 
-                        stroke="#0f172a" 
+                        stroke="#404040" 
                         strokeWidth={2}
                         name="VAT"
-                        dot={{ fill: "#0f172a" }}
+                        dot={{ fill: "#404040" }}
                       />
                       <Line 
                         type="monotone" 
                         dataKey="total" 
-                        stroke="#243b6b" 
+                        stroke="#171717" 
                         strokeWidth={2}
                         name="Total"
-                        dot={{ fill: "#243b6b" }}
+                        dot={{ fill: "#171717" }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -483,7 +483,7 @@ export default function Reports() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-stone-900" />
+                  <MapPin className="w-5 h-5 text-neutral-900" />
                   VAT by Country
                 </CardTitle>
               </CardHeader>
@@ -548,8 +548,8 @@ export default function Reports() {
                       contentStyle={{ borderRadius: '8px' }}
                     />
                     <Legend />
-                    <Bar dataKey="total" fill="#0f172a" name="Total" radius={[0, 4, 4, 0]} />
-                    <Bar dataKey="vat" fill="#243b6b" name="VAT" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="total" fill="#404040" name="Total" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="vat" fill="#171717" name="VAT" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

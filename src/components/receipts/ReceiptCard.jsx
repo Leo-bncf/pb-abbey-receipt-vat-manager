@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 
 const statusConfig = {
-  uploaded: { color: 'bg-stone-100 text-stone-600', icon: Clock, label: 'Uploaded' },
+  uploaded: { color: 'bg-neutral-100 text-neutral-600', icon: Clock, label: 'Uploaded' },
   processing: { color: 'bg-amber-100 text-amber-700', icon: Clock, label: 'Processing' },
   extracted: { color: 'bg-blue-100 text-blue-700', icon: CheckCircle, label: 'Extracted' },
   reviewed: { color: 'bg-green-100 text-green-700', icon: CheckCircle, label: 'Reviewed' },
@@ -32,19 +32,19 @@ export default function ReceiptCard({ receipt, onView, onDelete, index = 0 }) {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05 }}
-      className="bg-white rounded-xl border border-stone-200 overflow-hidden hover:shadow-lg hover:border-stone-300 transition-all duration-300"
+      className="bg-white rounded border border-neutral-200 overflow-hidden hover: hover:border-neutral-300 transition-all duration-300"
     >
       <div className="p-5">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center">
-              <FileText className="w-5 h-5 text-stone-500" />
+            <div className="w-10 h-10 rounded bg-neutral-100 flex items-center justify-center">
+              <FileText className="w-5 h-5 text-neutral-500" />
             </div>
             <div>
-              <h3 className="font-semibold text-stone-900 truncate max-w-[180px]">
+              <h3 className="font-semibold text-neutral-900 truncate max-w-[180px]">
                 {receipt.vendor_name || 'Unknown Vendor'}
               </h3>
-              <p className="text-xs text-stone-400 truncate max-w-[180px]">
+              <p className="text-xs text-neutral-400 truncate max-w-[180px]">
                 {receipt.file_name}
               </p>
             </div>
@@ -65,7 +65,7 @@ export default function ReceiptCard({ receipt, onView, onDelete, index = 0 }) {
                 className="p-1.5 hover:bg-red-50 rounded-lg transition-colors group"
                 title="Delete receipt"
               >
-                <Trash2 className="w-4 h-4 text-stone-400 group-hover:text-red-600" />
+                <Trash2 className="w-4 h-4 text-neutral-400 group-hover:text-red-600" />
               </button>
             )}
           </div>
@@ -73,8 +73,8 @@ export default function ReceiptCard({ receipt, onView, onDelete, index = 0 }) {
 
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="flex items-center gap-2 text-sm">
-            <Calendar className="w-4 h-4 text-stone-400" />
-            <span className="text-stone-600">
+            <Calendar className="w-4 h-4 text-neutral-400" />
+            <span className="text-neutral-600">
               {receipt.receipt_date 
                 ? format(new Date(receipt.receipt_date), 'dd/MM/yyyy')
                 : '-'
@@ -82,18 +82,18 @@ export default function ReceiptCard({ receipt, onView, onDelete, index = 0 }) {
             </span>
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <MapPin className="w-4 h-4 text-stone-400" />
-            <span className="text-stone-600">{receipt.country || '-'}</span>
+            <MapPin className="w-4 h-4 text-neutral-400" />
+            <span className="text-neutral-600">{receipt.country || '-'}</span>
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <Coins className="w-4 h-4 text-stone-400" />
-            <span className="text-stone-900 font-semibold">
+            <Coins className="w-4 h-4 text-neutral-400" />
+            <span className="text-neutral-900 font-semibold">
               {formatCurrency(receipt.total_amount, receipt.currency)}
             </span>
           </div>
           <div className="flex items-center gap-2 text-sm">
-            <Percent className="w-4 h-4 text-stone-400" />
-            <span className="text-stone-600">
+            <Percent className="w-4 h-4 text-neutral-400" />
+            <span className="text-neutral-600">
               VAT: {formatCurrency(receipt.vat_amount, receipt.currency)}
             </span>
           </div>
@@ -111,7 +111,7 @@ export default function ReceiptCard({ receipt, onView, onDelete, index = 0 }) {
         {receipt.confidence_score !== undefined && (
           <div className="mb-4">
             <div className="flex items-center justify-between text-xs mb-1">
-              <span className="text-stone-500">Confidence</span>
+              <span className="text-neutral-500">Confidence</span>
               <span className={`font-medium ${
                 receipt.confidence_score >= 80 ? 'text-green-600' :
                 receipt.confidence_score >= 50 ? 'text-amber-600' : 'text-red-600'
@@ -119,7 +119,7 @@ export default function ReceiptCard({ receipt, onView, onDelete, index = 0 }) {
                 {receipt.confidence_score}%
               </span>
             </div>
-            <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-neutral-100 rounded-full overflow-hidden">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${receipt.confidence_score}%` }}

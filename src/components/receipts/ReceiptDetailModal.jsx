@@ -58,32 +58,32 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+          className="bg-white rounded max-w-4xl w-full max-h-[90vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-neutral-200 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center">
-                <FileText className="w-5 h-5 text-stone-900" />
+              <div className="w-10 h-10 rounded bg-neutral-100 flex items-center justify-center">
+                <FileText className="w-5 h-5 text-neutral-900" />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-stone-900">Receipt Details</h2>
-                <p className="text-sm text-stone-500">{receipt.file_name}</p>
+                <h2 className="text-lg font-semibold text-neutral-900">Receipt Details</h2>
+                <p className="text-sm text-neutral-500">{receipt.file_name}</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-stone-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
             >
-              <X className="w-5 h-5 text-stone-500" />
+              <X className="w-5 h-5 text-neutral-500" />
             </button>
           </div>
 
           {/* Content */}
           <div className="flex flex-col lg:flex-row max-h-[calc(90vh-80px)] overflow-hidden">
             {/* Left: Image Preview */}
-            <div className="lg:w-1/2 p-6 bg-stone-900 border-b lg:border-b-0 lg:border-r border-stone-700">
+            <div className="lg:w-1/2 p-6 bg-neutral-900 border-b lg:border-b-0 lg:border-r border-neutral-700">
               {isMultiReceipt && location && (
                 <div className="mb-4 p-3 bg-amber-500/20 border border-amber-500/30 rounded-lg flex items-start gap-2">
                   <Info className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
@@ -98,7 +98,7 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
                   </div>
                 </div>
               )}
-              <div className="aspect-[3/4] rounded-xl bg-stone-900 border border-stone-700 overflow-auto relative">
+              <div className="aspect-[3/4] rounded bg-neutral-900 border border-neutral-700 overflow-auto relative">
                 {displayUrl ? (
                   receipt.file_type === 'pdf' ? (
                     <iframe 
@@ -116,7 +116,7 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
                     />
                   )
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-stone-500">
+                  <div className="w-full h-full flex items-center justify-center text-neutral-500">
                     <FileText className="w-16 h-16" />
                   </div>
                 )}
@@ -124,7 +124,7 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-4 w-full bg-stone-900 border-stone-600 text-stone-200 hover:bg-stone-700"
+                className="mt-4 w-full bg-neutral-900 border-neutral-600 text-neutral-200 hover:bg-neutral-700"
                 onClick={() => window.open(displayUrl, '_blank')}
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
@@ -141,7 +141,7 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
                     ${receipt.status === 'reviewed' ? 'bg-green-100 text-green-700' :
                       receipt.status === 'extracted' ? 'bg-blue-100 text-blue-700' :
                       receipt.status === 'error' ? 'bg-red-100 text-red-700' :
-                      'bg-stone-100 text-stone-600'}
+                      'bg-neutral-100 text-neutral-600'}
                   `}>
                     {receipt.status}
                   </Badge>
@@ -167,17 +167,17 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
                     <div 
                       key={field.label}
                       className={`flex items-center justify-between p-3 rounded-lg ${
-                        field.highlight ? 'bg-stone-50' : 'bg-stone-50'
+                        field.highlight ? 'bg-neutral-50' : 'bg-neutral-50'
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <field.icon className={`w-4 h-4 ${
-                          field.highlight ? 'text-stone-900' : 'text-stone-400'
+                          field.highlight ? 'text-neutral-900' : 'text-neutral-400'
                         }`} />
-                        <span className="text-sm text-stone-600">{field.label}</span>
+                        <span className="text-sm text-neutral-600">{field.label}</span>
                       </div>
                       <span className={`text-sm font-medium ${
-                        field.highlight ? 'text-stone-800' : 'text-stone-900'
+                        field.highlight ? 'text-neutral-800' : 'text-neutral-900'
                       }`}>
                         {field.value || '-'}
                       </span>
@@ -189,7 +189,7 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
                 {receipt.ocr_text && (
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-semibold text-stone-700">OCR Text</h3>
+                      <h3 className="text-sm font-semibold text-neutral-700">OCR Text</h3>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -198,8 +198,8 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
                         <Copy className="w-4 h-4" />
                       </Button>
                     </div>
-                    <div className="p-4 bg-stone-50 rounded-lg max-h-48 overflow-y-auto">
-                      <pre className="text-xs text-stone-600 whitespace-pre-wrap font-mono">
+                    <div className="p-4 bg-neutral-50 rounded-lg max-h-48 overflow-y-auto">
+                      <pre className="text-xs text-neutral-600 whitespace-pre-wrap font-mono">
                         {receipt.ocr_text}
                       </pre>
                     </div>

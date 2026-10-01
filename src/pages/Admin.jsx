@@ -163,7 +163,7 @@ export default function Admin() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-white border border-stone-200">
+          <TabsList className="bg-white border border-neutral-200">
             <TabsTrigger value="review" className="gap-2">
               <FileText className="w-4 h-4" />
               Review Receipts
@@ -184,9 +184,9 @@ export default function Admin() {
               {/* Receipt List */}
               <div className="w-1/3 space-y-4">
                 {/* Filters */}
-                <div className="bg-white rounded-xl border border-stone-200 p-4 space-y-3">
+                <div className="bg-white rounded border border-neutral-200 p-4 space-y-3">
                   <div className="relative">
-                    <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <Input
                       placeholder="Search..."
                       value={searchQuery}
@@ -208,28 +208,28 @@ export default function Admin() {
                 </div>
 
                 {/* Receipt List */}
-                <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
-                  <div className="px-4 py-3 border-b border-stone-200">
-                    <p className="text-sm text-stone-600">
+                <div className="bg-white rounded border border-neutral-200 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-neutral-200">
+                    <p className="text-sm text-neutral-600">
                       {filteredReceipts.length} receipts
                     </p>
                   </div>
-                  <div className="max-h-[calc(100vh-400px)] overflow-y-auto divide-y divide-stone-100">
+                  <div className="max-h-[calc(100vh-400px)] overflow-y-auto divide-y divide-neutral-100">
                     {filteredReceipts.map((receipt) => (
                       <motion.button
                         key={receipt.id}
                         onClick={() => setSelectedReceipt(receipt)}
-                        className={`w-full p-4 text-left hover:bg-stone-50 transition-colors ${
-                          selectedReceipt?.id === receipt.id ? 'bg-stone-50' : ''
+                        className={`w-full p-4 text-left hover:bg-neutral-50 transition-colors ${
+                          selectedReceipt?.id === receipt.id ? 'bg-neutral-50' : ''
                         }`}
                         whileHover={{ x: 2 }}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-stone-900 truncate">
+                            <p className="font-medium text-neutral-900 truncate">
                               {receipt.vendor_name || 'Unknown Vendor'}
                             </p>
-                            <p className="text-xs text-stone-400 truncate">
+                            <p className="text-xs text-neutral-400 truncate">
                               {receipt.file_name}
                             </p>
                           </div>
@@ -256,7 +256,7 @@ export default function Admin() {
                       </motion.button>
                     ))}
                     {filteredReceipts.length === 0 && (
-                      <div className="p-8 text-center text-stone-500">
+                      <div className="p-8 text-center text-neutral-500">
                         No receipts found
                       </div>
                     )}
@@ -279,7 +279,7 @@ export default function Admin() {
                         <ChevronLeft className="w-4 h-4 mr-1" />
                         Previous
                       </Button>
-                      <span className="text-sm text-stone-500">
+                      <span className="text-sm text-neutral-500">
                         {filteredReceipts.findIndex(r => r.id === selectedReceipt.id) + 1} of {filteredReceipts.length}
                       </span>
                       <Button
@@ -300,12 +300,12 @@ export default function Admin() {
                     />
                   </>
                 ) : (
-                  <div className="bg-white rounded-xl border border-stone-200 p-12 text-center h-full flex flex-col items-center justify-center">
-                    <div className="w-16 h-16 rounded-2xl bg-stone-100 flex items-center justify-center mb-4">
-                      <FileText className="w-8 h-8 text-stone-400" />
+                  <div className="bg-white rounded border border-neutral-200 p-12 text-center h-full flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 rounded bg-neutral-100 flex items-center justify-center mb-4">
+                      <FileText className="w-8 h-8 text-neutral-400" />
                     </div>
-                    <h3 className="text-lg font-semibold text-stone-900 mb-2">Select a Receipt</h3>
-                    <p className="text-stone-500">
+                    <h3 className="text-lg font-semibold text-neutral-900 mb-2">Select a Receipt</h3>
+                    <p className="text-neutral-500">
                       Choose a receipt from the list to review and correct
                     </p>
                   </div>
@@ -321,33 +321,33 @@ export default function Admin() {
 
           {/* Corrections History Tab */}
           <TabsContent value="corrections">
-            <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-stone-200">
-                <h3 className="font-semibold text-stone-900">Correction History</h3>
-                <p className="text-sm text-stone-500">All corrections made to receipt data</p>
+            <div className="bg-white rounded border border-neutral-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-neutral-200">
+                <h3 className="font-semibold text-neutral-900">Correction History</h3>
+                <p className="text-sm text-neutral-500">All corrections made to receipt data</p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-stone-50">
+                  <thead className="bg-neutral-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Receipt</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Field</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Original</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Corrected</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">By</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-stone-500 uppercase">Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Receipt</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Field</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Original</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Corrected</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">By</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase">Date</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-stone-100">
+                  <tbody className="divide-y divide-neutral-100">
                     {corrections.map((correction, index) => (
                       <motion.tr
                         key={correction.id}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: index * 0.02 }}
-                        className="hover:bg-stone-50"
+                        className="hover:bg-neutral-50"
                       >
-                        <td className="px-6 py-4 text-sm text-stone-900">
+                        <td className="px-6 py-4 text-sm text-neutral-900">
                           {correction.receipt_id?.substring(0, 8)}...
                         </td>
                         <td className="px-6 py-4">
@@ -359,17 +359,17 @@ export default function Admin() {
                         <td className="px-6 py-4 text-sm text-green-600 font-medium">
                           {correction.corrected_value}
                         </td>
-                        <td className="px-6 py-4 text-sm text-stone-500">
+                        <td className="px-6 py-4 text-sm text-neutral-500">
                           {correction.corrected_by}
                         </td>
-                        <td className="px-6 py-4 text-sm text-stone-500">
+                        <td className="px-6 py-4 text-sm text-neutral-500">
                           {correction.created_date && format(new Date(correction.created_date), 'dd MMM yyyy')}
                         </td>
                       </motion.tr>
                     ))}
                     {corrections.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-stone-500">
+                        <td colSpan={6} className="px-6 py-12 text-center text-neutral-500">
                           No corrections recorded yet
                         </td>
                       </tr>

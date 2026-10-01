@@ -14,20 +14,20 @@ const statusChip = {
   paid: 'text-emerald-700 border-emerald-200 bg-emerald-50',
   part_paid: 'text-amber-700 border-amber-200 bg-amber-50',
   overdue: 'text-red-700 border-red-200 bg-red-50',
-  pending: 'text-slate-600 border-slate-200 bg-slate-50',
+  pending: 'text-neutral-600 border-neutral-200 bg-neutral-50',
 };
 
 function Kpi({ label, value, accent }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-lg p-5">
-      <p className="text-xs font-medium text-slate-500 mb-2">{label}</p>
-      <p className={`text-2xl font-semibold tracking-tight tabular-nums ${accent ? 'text-red-600' : 'text-slate-900'}`}>{value}</p>
+    <div className="bg-white border border-neutral-200 rounded-lg p-5">
+      <p className="text-xs font-medium text-neutral-500 mb-2">{label}</p>
+      <p className={`text-2xl font-semibold tracking-tight tabular-nums font-fig ${accent ? 'text-red-600' : 'text-neutral-900'}`}>{value}</p>
     </div>
   );
 }
 
 const Th = ({ children, right }) => (
-  <th className={`px-4 py-2.5 text-xs font-semibold text-slate-500 ${right ? 'text-right' : 'text-left'}`}>{children}</th>
+  <th className={`px-4 py-2.5 text-xs font-semibold text-neutral-500 ${right ? 'text-right' : 'text-left'}`}>{children}</th>
 );
 
 export default function TenantHome() {
@@ -52,16 +52,16 @@ export default function TenantHome() {
   }, [units, payments]);
 
   return (
-    <div className="min-h-screen bg-background text-slate-800">
+    <div className="min-h-screen bg-background text-neutral-800">
       {/* Top bar */}
-      <header className="bg-white border-b border-slate-200">
+      <header className="bg-white border-b border-neutral-200">
         <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <span className="font-semibold text-slate-900">PB Abbey</span>
-            <span className="text-slate-300">/</span>
-            <span className="text-sm text-slate-500">Tenant</span>
+            <span className="font-semibold text-neutral-900">PB Abbey</span>
+            <span className="text-neutral-300">/</span>
+            <span className="text-sm text-neutral-500">Tenant</span>
           </div>
-          <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors">
+          <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors">
             <ArrowLeft className="w-4 h-4" /> All apps
           </Link>
         </div>
@@ -69,8 +69,8 @@ export default function TenantHome() {
 
       <div className="max-w-6xl mx-auto px-6 py-7">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Tenant</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Rental properties, tenants and rent.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Tenant</h1>
+          <p className="text-sm text-neutral-500 mt-0.5">Rental properties, tenants and rent.</p>
         </div>
 
         {/* KPIs */}
@@ -82,53 +82,53 @@ export default function TenantHome() {
         </div>
 
         {/* Rent payments */}
-        <h2 className="text-sm font-semibold text-slate-500 mb-3">Rent payments</h2>
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mb-10">
+        <h2 className="text-sm font-semibold text-neutral-500 mb-3">Rent payments</h2>
+        <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden mb-10">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-neutral-50 border-b border-neutral-200">
                 <tr><Th>Tenant</Th><Th>Period</Th><Th>Due</Th><Th right>Net</Th><Th right>VAT</Th><Th right>Total</Th><Th>Status</Th><Th></Th></tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-neutral-100">
                 {payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-slate-800">{p.tenant_name}</td>
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{fmtDate(p.period_start)} → {fmtDate(p.period_end)}</td>
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{fmtDate(p.due_date)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{gbp(p.net_amount)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums text-slate-500">{gbp(p.vat_amount)}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-semibold">{gbp(p.total_amount)}</td>
+                  <tr key={p.id} className="hover:bg-neutral-50">
+                    <td className="px-4 py-3 font-medium text-neutral-800">{p.tenant_name}</td>
+                    <td className="px-4 py-3 text-neutral-500 whitespace-nowrap">{fmtDate(p.period_start)} → {fmtDate(p.period_end)}</td>
+                    <td className="px-4 py-3 text-neutral-500 whitespace-nowrap">{fmtDate(p.due_date)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-fig">{gbp(p.net_amount)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-fig text-neutral-500">{gbp(p.vat_amount)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-fig font-semibold">{gbp(p.total_amount)}</td>
                     <td className="px-4 py-3"><span className={`inline-block px-2 py-0.5 rounded text-xs border ${statusChip[p.status] || statusChip.pending}`}>{p.status}</span></td>
                     <td className="px-4 py-3 text-right">
                       {p.status !== 'paid' && (
-                        <Button size="sm" variant="outline" className="gap-1.5 border-slate-300" disabled={markPaid.isPending} onClick={() => markPaid.mutate(p)}>
+                        <Button size="sm" variant="outline" className="gap-1.5 border-neutral-300" disabled={markPaid.isPending} onClick={() => markPaid.mutate(p)}>
                           {markPaid.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Mark paid
                         </Button>
                       )}
                     </td>
                   </tr>
                 ))}
-                {payments.length === 0 && <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400">No rent payments yet</td></tr>}
+                {payments.length === 0 && <tr><td colSpan={8} className="px-4 py-12 text-center text-neutral-400">No rent payments yet</td></tr>}
               </tbody>
             </table>
           </div>
         </div>
 
         {/* Units & tenants */}
-        <h2 className="text-sm font-semibold text-slate-500 mb-3">Units &amp; tenants</h2>
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+        <h2 className="text-sm font-semibold text-neutral-500 mb-3">Units &amp; tenants</h2>
+        <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
+              <thead className="bg-neutral-50 border-b border-neutral-200">
                 <tr><Th>Unit</Th><Th>Address</Th><Th>Tenant</Th><Th right>Rent</Th><Th>Status</Th></tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-neutral-100">
                 {units.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-medium text-slate-800">{u.reference}</td>
-                    <td className="px-4 py-3 text-slate-500">{u.address}</td>
-                    <td className="px-4 py-3 text-slate-600">{u.tenant_name || '—'}</td>
-                    <td className="px-4 py-3 text-right tabular-nums">{gbp(u.rent_amount)}</td>
+                  <tr key={u.id} className="hover:bg-neutral-50">
+                    <td className="px-4 py-3 font-medium text-neutral-800">{u.reference}</td>
+                    <td className="px-4 py-3 text-neutral-500">{u.address}</td>
+                    <td className="px-4 py-3 text-neutral-600">{u.tenant_name || '—'}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-fig">{gbp(u.rent_amount)}</td>
                     <td className="px-4 py-3"><span className={`inline-block px-2 py-0.5 rounded text-xs border ${u.status === 'occupied' ? statusChip.paid : statusChip.pending}`}>{u.status}</span></td>
                   </tr>
                 ))}

@@ -14,7 +14,7 @@ import {
 import { format } from 'date-fns';
 
 const statusConfig = {
-  uploaded: { color: 'bg-stone-100 text-stone-600', label: 'Uploaded' },
+  uploaded: { color: 'bg-neutral-100 text-neutral-600', label: 'Uploaded' },
   processing: { color: 'bg-amber-100 text-amber-700', label: 'Processing' },
   extracted: { color: 'bg-blue-100 text-blue-700', label: 'Extracted' },
   reviewed: { color: 'bg-green-100 text-green-700', label: 'Reviewed' },
@@ -56,7 +56,7 @@ export default function ReceiptTable({
   const SortHeader = ({ field, children }) => (
     <button
       onClick={() => onSort(field)}
-      className="flex items-center gap-1 hover:text-stone-900 transition-colors"
+      className="flex items-center gap-1 hover:text-neutral-900 transition-colors"
     >
       {children}
       {sortField === field && (
@@ -68,11 +68,11 @@ export default function ReceiptTable({
   );
 
   return (
-    <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
+    <div className="bg-white rounded border border-neutral-200 overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="bg-stone-50">
+            <TableRow className="bg-neutral-50">
               <TableHead className="w-12">
                 <Checkbox 
                   checked={selectedIds.length === receipts.length && receipts.length > 0}
@@ -104,7 +104,7 @@ export default function ReceiptTable({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: index * 0.02 }}
-                  className="hover:bg-stone-50 transition-colors"
+                  className="hover:bg-neutral-50 transition-colors"
                 >
                   <TableCell>
                     <Checkbox 
@@ -114,30 +114,30 @@ export default function ReceiptTable({
                   </TableCell>
                   <TableCell>
                     <div>
-                      <p className="font-medium text-stone-900">
+                      <p className="font-medium text-neutral-900">
                         {receipt.vendor_name || 'Unknown'}
                       </p>
-                      <p className="text-xs text-stone-400 truncate max-w-[150px]">
+                      <p className="text-xs text-neutral-400 truncate max-w-[150px]">
                         {receipt.file_name}
                       </p>
                     </div>
                   </TableCell>
-                  <TableCell className="text-stone-600">
+                  <TableCell className="text-neutral-600">
                     {receipt.receipt_date 
                       ? format(new Date(receipt.receipt_date), 'dd/MM/yyyy')
                       : '-'
                     }
                   </TableCell>
-                  <TableCell className="text-stone-600">
+                  <TableCell className="text-neutral-600">
                     {receipt.country || '-'}
                   </TableCell>
-                  <TableCell className="text-right font-semibold text-stone-900">
+                  <TableCell className="text-right font-semibold text-neutral-900">
                     {formatCurrency(receipt.total_amount, receipt.currency)}
                   </TableCell>
-                  <TableCell className="text-right text-stone-600">
+                  <TableCell className="text-right text-neutral-600">
                     {formatCurrency(receipt.vat_amount, receipt.currency)}
                     {receipt.vat_rate && (
-                      <span className="text-xs text-stone-400 ml-1">
+                      <span className="text-xs text-neutral-400 ml-1">
                         ({receipt.vat_rate}%)
                       </span>
                     )}
@@ -150,7 +150,7 @@ export default function ReceiptTable({
                   <TableCell>
                     {receipt.confidence_score !== undefined ? (
                       <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 bg-stone-100 rounded-full overflow-hidden">
+                        <div className="w-16 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
                           <div 
                             className={`h-full rounded-full ${
                               receipt.confidence_score >= 80 ? 'bg-green-500' :
@@ -159,7 +159,7 @@ export default function ReceiptTable({
                             style={{ width: `${receipt.confidence_score}%` }}
                           />
                         </div>
-                        <span className="text-xs text-stone-500">
+                        <span className="text-xs text-neutral-500">
                           {receipt.confidence_score}%
                         </span>
                       </div>
@@ -182,7 +182,7 @@ export default function ReceiptTable({
       </div>
       
       {receipts.length === 0 && (
-        <div className="p-12 text-center text-stone-500">
+        <div className="p-12 text-center text-neutral-500">
           No receipts found
         </div>
       )}

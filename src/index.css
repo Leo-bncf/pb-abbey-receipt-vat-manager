@@ -76,8 +76,8 @@ button:focus-visible {
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 215 25% 15%;
+    --background: 40 16% 96%;
+    --foreground: 220 15% 11%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
@@ -92,9 +92,10 @@ button:focus-visible {
     --accent-foreground: 0 0% 9%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
+    --border: 36 10% 85%;
+    --input: 36 10% 85%;
+    --ring: 220 15% 11%;
+    --radius: 0.25rem;
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
     --chart-3: 197 37% 24%;
@@ -158,14 +159,21 @@ button:focus-visible {
   }
 }
 
-/* Headings use the same clean sans-serif (professional accounting look).
-   .font-display kept so existing markup works, now mapped to Inter. */
+/* Ledger / Swiss system. Headings = Inter, tight. Figures = IBM Plex Mono
+   (tabular), the "financial instrument" signal that reads precise, not playful. */
 .font-display {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   letter-spacing: -0.02em;
 }
-/* Brand accent — professional navy/blue */
-:root { --brand: 221 55% 32%; }
+.font-fig {
+  font-family: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  font-feature-settings: 'tnum' 1;
+  letter-spacing: -0.01em;
+}
+/* Single restrained accent — ink-blue, for links / active state only. */
+:root { --brand: 222 39% 33%; }
 .text-brand { color: hsl(var(--brand)); }
 .bg-brand { background-color: hsl(var(--brand)); }
 .border-brand { border-color: hsl(var(--brand)); }
+/* Hairline rule token */
+.rule { border-color: hsl(var(--border)); }

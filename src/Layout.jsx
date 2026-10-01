@@ -45,20 +45,20 @@ export default function Layout({ children, currentPageName }) {
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile Header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-stone-200">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-neutral-200">
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-stone-800 to-stone-900 flex items-center justify-center">
+            <div className="w-9 h-9 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center">
               <Building2 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h1 className="font-display font-semibold text-stone-900 text-base">PB Abbey</h1>
-              <p className="text-xs text-stone-500">Receipts & VAT</p>
+              <h1 className="font-display font-semibold text-neutral-900 text-base">PB Abbey</h1>
+              <p className="text-xs text-neutral-500">Receipts & VAT</p>
             </div>
           </div>
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-2 hover:bg-stone-100 rounded-lg"
+            className="p-2 hover:bg-neutral-100 rounded-lg"
           >
             {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -84,10 +84,10 @@ export default function Layout({ children, currentPageName }) {
                       to={item.path || createPageUrl(item.page)}
                       onClick={() => setIsSidebarOpen(false)}
                       className={`
-                        flex items-center gap-3 px-4 py-3 rounded-xl transition-all
+                        flex items-center gap-3 px-4 py-3 rounded transition-all
                         ${isActive 
-                          ? 'bg-stone-100 text-stone-800' 
-                          : 'text-stone-600 hover:bg-stone-100'
+                          ? 'bg-neutral-100 text-neutral-800' 
+                          : 'text-neutral-600 hover:bg-neutral-100'
                         }
                       `}
                     >
@@ -99,18 +99,18 @@ export default function Layout({ children, currentPageName }) {
               </nav>
 
               {user && (
-                <div className="mt-8 pt-8 border-t border-stone-200">
+                <div className="mt-8 pt-8 border-t border-neutral-200">
                   <div className="flex items-center gap-3 px-4 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-stone-200 flex items-center justify-center">
-                      <span className="text-stone-600 font-medium">
+                    <div className="w-10 h-10 rounded bg-neutral-200 flex items-center justify-center">
+                      <span className="text-neutral-600 font-medium">
                         {user.full_name?.[0] || user.email?.[0] || 'U'}
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-stone-900 truncate">
+                      <p className="font-medium text-neutral-900 truncate">
                         {user.full_name || 'User'}
                       </p>
-                      <p className="text-xs text-stone-500 truncate">{user.email}</p>
+                      <p className="text-xs text-neutral-500 truncate">{user.email}</p>
                     </div>
                   </div>
                   <Button
@@ -130,16 +130,16 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex lg:w-56 lg:flex-col lg:fixed lg:inset-y-0">
-        <div className="flex flex-col flex-grow bg-white border-r border-stone-200">
+        <div className="flex flex-col flex-grow bg-white border-r border-neutral-200">
           {/* Logo */}
-          <div className="px-6 py-6 border-b border-stone-100">
+          <div className="px-6 py-6 border-b border-neutral-100">
             <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-stone-800 to-stone-900 flex items-center justify-center shadow-lg shadow-stone-300">
+              <div className="w-11 h-11 rounded bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center -neutral-300">
                 <Building2 className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="font-display font-semibold text-stone-900 text-lg">PB Abbey</h1>
-                <p className="text-xs text-stone-500">Receipts & VAT</p>
+                <h1 className="font-display font-semibold text-neutral-900 text-lg">PB Abbey</h1>
+                <p className="text-xs text-neutral-500">Receipts & VAT</p>
               </div>
             </div>
           </div>
@@ -153,17 +153,17 @@ export default function Layout({ children, currentPageName }) {
                   key={item.name}
                   to={item.path || createPageUrl(item.page)}
                   className={`
-                    group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
+                    group flex items-center gap-3 px-4 py-3 rounded transition-all duration-200
                     ${isActive 
-                      ? 'bg-stone-50 text-stone-800' 
-                      : 'text-stone-600 hover:bg-stone-50 hover:text-stone-900'
+                      ? 'bg-neutral-50 text-neutral-800' 
+                      : 'text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900'
                     }
                   `}
                 >
-                  <item.icon className={`w-5 h-5 transition-colors ${isActive ? 'text-stone-900' : ''}`} />
+                  <item.icon className={`w-5 h-5 transition-colors ${isActive ? 'text-neutral-900' : ''}`} />
                   <span className="font-medium">{item.name}</span>
                   {isActive && (
-                    <ChevronRight className="w-4 h-4 ml-auto text-stone-500" />
+                    <ChevronRight className="w-4 h-4 ml-auto text-neutral-500" />
                   )}
                 </Link>
               );
@@ -172,25 +172,25 @@ export default function Layout({ children, currentPageName }) {
 
           {/* User Section */}
           {user && (
-            <div className="p-4 border-t border-stone-100">
-              <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-stone-50">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-stone-200 to-stone-300 flex items-center justify-center">
-                  <span className="text-stone-600 font-semibold">
+            <div className="p-4 border-t border-neutral-100">
+              <div className="flex items-center gap-3 px-3 py-3 rounded bg-neutral-50">
+                <div className="w-10 h-10 rounded bg-gradient-to-br from-neutral-200 to-neutral-300 flex items-center justify-center">
+                  <span className="text-neutral-600 font-semibold">
                     {user.full_name?.[0] || user.email?.[0] || 'U'}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-stone-900 truncate text-sm">
+                  <p className="font-medium text-neutral-900 truncate text-sm">
                     {user.full_name || 'User'}
                   </p>
-                  <p className="text-xs text-stone-500 truncate">{user.email}</p>
+                  <p className="text-xs text-neutral-500 truncate">{user.email}</p>
                 </div>
                 <button
                   onClick={handleLogout}
-                  className="p-2 hover:bg-stone-200 rounded-lg transition-colors"
+                  className="p-2 hover:bg-neutral-200 rounded-lg transition-colors"
                   title="Sign out"
                 >
-                  <LogOut className="w-4 h-4 text-stone-500" />
+                  <LogOut className="w-4 h-4 text-neutral-500" />
                 </button>
               </div>
             </div>

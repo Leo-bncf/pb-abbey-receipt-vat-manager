@@ -633,25 +633,25 @@ export default function Upload() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 }}
-      className="bg-white rounded-2xl border border-stone-200 overflow-hidden mt-8 text-left"
+      className="bg-white rounded border border-neutral-200 overflow-hidden mt-8 text-left"
     >
-      <div className="px-6 py-4 border-b border-stone-200 flex items-center gap-2">
-        <Clock className="w-5 h-5 text-stone-400" />
-        <h3 className="font-semibold text-stone-900">Previously Uploaded Documents</h3>
+      <div className="px-6 py-4 border-b border-neutral-200 flex items-center gap-2">
+        <Clock className="w-5 h-5 text-neutral-400" />
+        <h3 className="font-semibold text-neutral-900">Previously Uploaded Documents</h3>
         <Badge variant="outline" className="ml-auto text-xs">{uploadHistory.length}</Badge>
       </div>
-      <p className="px-6 pt-3 text-sm text-stone-500">
+      <p className="px-6 pt-3 text-sm text-neutral-500">
         Check here before uploading to avoid processing the same document twice.
       </p>
-      <div className="divide-y divide-stone-100 max-h-80 overflow-y-auto mt-2">
+      <div className="divide-y divide-neutral-100 max-h-80 overflow-y-auto mt-2">
         {uploadHistory.map((doc) => (
           <div key={doc.name} className="px-6 py-3 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 min-w-0">
-              <FileText className="w-4 h-4 text-stone-400 shrink-0" />
-              <span className="text-sm text-stone-700 truncate" title={doc.name}>{doc.name}</span>
+              <FileText className="w-4 h-4 text-neutral-400 shrink-0" />
+              <span className="text-sm text-neutral-700 truncate" title={doc.name}>{doc.name}</span>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-              <span className="text-xs text-stone-400">
+              <span className="text-xs text-neutral-400">
                 {doc.date ? format(new Date(doc.date), 'd MMM yyyy') : ''}
               </span>
               <Badge variant="outline" className="text-xs">
@@ -664,7 +664,7 @@ export default function Upload() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title="Download original file"
-                  className="inline-flex items-center gap-1 text-xs text-stone-900 hover:text-stone-800 hover:underline"
+                  className="inline-flex items-center gap-1 text-xs text-neutral-900 hover:text-neutral-800 hover:underline"
                 >
                   <Download className="w-3.5 h-3.5" />
                   Download
@@ -695,7 +695,7 @@ export default function Upload() {
       <div className="max-w-3xl mx-auto">
         {/* base44 AI credit limit reached */}
         {limitReached && (
-          <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+          <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
             <div className="text-sm text-red-800">
               <p className="font-semibold mb-1">AI usage limit reached</p>
@@ -710,12 +710,12 @@ export default function Upload() {
         {/* Folder selection — REQUIRED before uploading */}
         {!isProcessing && processedFiles.length === 0 && (
           <div className="max-w-md mb-6">
-            <label className="text-xs font-medium text-slate-600 block mb-2 flex items-center gap-2">
+            <label className="text-xs font-medium text-neutral-600 block mb-2 flex items-center gap-2">
               <Folder className="w-4 h-4" /> Choose a folder <span className="text-red-500">*</span>
             </label>
             <div className="flex gap-2">
               <Select value={selectedFolderId || ''} onValueChange={(v) => setSelectedFolderId(v || null)}>
-                <SelectTrigger className="bg-white border-slate-300">
+                <SelectTrigger className="bg-white border-neutral-300">
                   <SelectValue placeholder="Select a folder…" />
                 </SelectTrigger>
                 <SelectContent>
@@ -726,7 +726,7 @@ export default function Upload() {
               </Select>
               <Button
                 variant="outline"
-                className="gap-2 border-slate-300 shrink-0"
+                className="gap-2 border-neutral-300 shrink-0"
                 onClick={async () => {
                   const name = prompt('New folder name:');
                   if (name && name.trim()) {
@@ -740,7 +740,7 @@ export default function Upload() {
               </Button>
             </div>
             {!selectedFolderId && (
-              <p className="text-xs text-slate-400 mt-2">Receipts must be filed in a folder. Pick one (or create it) to start uploading.</p>
+              <p className="text-xs text-neutral-400 mt-2">Receipts must be filed in a folder. Pick one (or create it) to start uploading.</p>
             )}
           </div>
         )}
@@ -755,9 +755,9 @@ export default function Upload() {
             {selectedFolderId ? (
               <UploadZone onFilesSelected={handleFilesSelected} isProcessing={isProcessing} />
             ) : (
-              <div className="border-2 border-dashed border-slate-200 rounded-xl p-12 text-center bg-slate-50/50">
-                <Folder className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                <p className="text-sm text-slate-400">Choose a folder above to begin.</p>
+              <div className="border-2 border-dashed border-neutral-200 rounded p-12 text-center bg-neutral-50/50">
+                <Folder className="w-8 h-8 text-neutral-300 mx-auto mb-3" />
+                <p className="text-sm text-neutral-400">Choose a folder above to begin.</p>
               </div>
             )}
             {uploadHistorySection}
@@ -769,16 +769,16 @@ export default function Upload() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl border border-stone-200 p-8 text-center"
+            className="bg-white rounded border border-neutral-200 p-8 text-center"
           >
-            <Loader2 className="w-12 h-12 text-stone-900 animate-spin mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-stone-900 mb-2">
+            <Loader2 className="w-12 h-12 text-neutral-900 animate-spin mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-neutral-900 mb-2">
               Processing Receipts
             </h3>
-            <p className="text-stone-500 mb-4">
+            <p className="text-neutral-500 mb-4">
               Extracting data from {uploadProgress.current} of {uploadProgress.total} files...
             </p>
-            <div className="text-2xl font-bold text-stone-900 mb-6">
+            <div className="text-2xl font-bold text-neutral-900 mb-6">
               {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}
             </div>
             <Progress 
@@ -796,47 +796,47 @@ export default function Upload() {
             className="space-y-6"
           >
             {/* Summary */}
-            <div className="bg-white rounded-2xl border border-stone-200 p-8">
+            <div className="bg-white rounded border border-neutral-200 p-8">
               <div className="flex items-center justify-center gap-4 mb-6">
-                <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center">
+                <div className="w-16 h-16 rounded bg-green-100 flex items-center justify-center">
                   <CheckCircle className="w-8 h-8 text-green-600" />
                 </div>
               </div>
-              <h3 className="text-xl font-semibold text-stone-900 text-center mb-2">
+              <h3 className="text-xl font-semibold text-neutral-900 text-center mb-2">
                 Processing Complete
               </h3>
-              <p className="text-stone-500 text-center mb-2">
+              <p className="text-neutral-500 text-center mb-2">
                 Successfully processed {processedFiles.filter(f => f.success).length} receipt{processedFiles.filter(f => f.success).length !== 1 ? 's' : ''}
                 {errors.length > 0 ? ` (${errors.length} failed)` : ''}
                 {skipped.length > 0 ? ` (${skipped.length} duplicate${skipped.length !== 1 ? 's' : ''} skipped)` : ''}
               </p>
-              <p className="text-sm text-stone-400 text-center mb-8">
+              <p className="text-sm text-neutral-400 text-center mb-8">
                 Completed in {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}
               </p>
 
               <div className="grid grid-cols-3 gap-4 mb-8">
-                <div className="text-center p-4 bg-stone-50 rounded-xl">
-                  <p className="font-display text-3xl font-semibold text-stone-900">
+                <div className="text-center p-4 bg-neutral-50 rounded">
+                  <p className="font-display text-3xl font-semibold text-neutral-900">
                     {processedFiles.filter(f => f.success).length}
                   </p>
-                  <p className="text-sm text-stone-500">Receipts</p>
+                  <p className="text-sm text-neutral-500">Receipts</p>
                 </div>
-                <div className="text-center p-4 bg-stone-50 rounded-xl">
-                  <p className="text-2xl font-bold text-stone-900">
+                <div className="text-center p-4 bg-neutral-50 rounded">
+                  <p className="text-2xl font-bold text-neutral-900">
                     £{totalAmount.toFixed(2)}
                   </p>
-                  <p className="text-sm text-stone-500">Total Amount</p>
+                  <p className="text-sm text-neutral-500">Total Amount</p>
                 </div>
-                <div className="text-center p-4 bg-emerald-50 rounded-xl">
+                <div className="text-center p-4 bg-emerald-50 rounded">
                   <p className="text-2xl font-bold text-emerald-600">
                     £{totalVAT.toFixed(2)}
                   </p>
-                  <p className="text-sm text-stone-500">Total VAT</p>
+                  <p className="text-sm text-neutral-500">Total VAT</p>
                 </div>
               </div>
 
               {errors.length > 0 && (
-                <div className="mb-6 p-4 bg-red-50 rounded-xl">
+                <div className="mb-6 p-4 bg-red-50 rounded">
                   <div className="flex items-center gap-2 mb-2">
                     <AlertCircle className="w-5 h-5 text-red-600" />
                     <span className="font-medium text-red-800">
@@ -852,7 +852,7 @@ export default function Upload() {
               )}
 
               {skipped.length > 0 && (
-                <div className="mb-6 p-4 bg-amber-50 rounded-xl">
+                <div className="mb-6 p-4 bg-amber-50 rounded">
                   <div className="flex items-center gap-2 mb-2">
                     <AlertCircle className="w-5 h-5 text-amber-600" />
                     <span className="font-medium text-amber-800">
@@ -883,7 +883,7 @@ export default function Upload() {
                 </Button>
                 <Button
                   onClick={() => navigate(createPageUrl('Dashboard'))}
-                  className="bg-stone-900 hover:bg-stone-800"
+                  className="bg-neutral-900 hover:bg-neutral-800"
                 >
                   View Dashboard
                   <ArrowRight className="w-4 h-4 ml-2" />
@@ -892,36 +892,36 @@ export default function Upload() {
             </div>
 
             {/* Processed Files List */}
-            <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-stone-200">
-                <h3 className="font-semibold text-stone-900">Processed Receipts</h3>
+            <div className="bg-white rounded border border-neutral-200 overflow-hidden">
+              <div className="px-6 py-4 border-b border-neutral-200">
+                <h3 className="font-semibold text-neutral-900">Processed Receipts</h3>
               </div>
-              <div className="divide-y divide-stone-100">
+              <div className="divide-y divide-neutral-100">
                 {processedFiles.filter(f => f.success).map((file, index) => (
                   <motion.div
                     key={file.id || index}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    className="p-4 flex items-center justify-between hover:bg-stone-50 transition-colors"
+                    className="p-4 flex items-center justify-between hover:bg-neutral-50 transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-stone-100 flex items-center justify-center">
-                        <FileText className="w-5 h-5 text-stone-500" />
+                      <div className="w-10 h-10 rounded-lg bg-neutral-100 flex items-center justify-center">
+                        <FileText className="w-5 h-5 text-neutral-500" />
                       </div>
                       <div>
-                        <p className="font-medium text-stone-900">
+                        <p className="font-medium text-neutral-900">
                           {file.vendor_name || 'Unknown Vendor'}
                         </p>
-                        <p className="text-xs text-stone-400">{file.file_name}</p>
+                        <p className="text-xs text-neutral-400">{file.file_name}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-6">
                       <div className="text-right">
-                        <p className="font-semibold text-stone-900">
+                        <p className="font-semibold text-neutral-900">
                           £{(file.total_amount || 0).toFixed(2)}
                         </p>
-                        <p className="text-xs text-stone-400">
+                        <p className="text-xs text-neutral-400">
                           VAT: £{(file.vat_amount || 0).toFixed(2)}
                         </p>
                       </div>

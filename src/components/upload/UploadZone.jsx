@@ -73,10 +73,10 @@ export default function UploadZone({ onFilesSelected, isProcessing }) {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         className={`
-          relative border-2 border-dashed rounded-2xl p-12 text-center transition-all duration-300 cursor-pointer
+          relative border-2 border-dashed rounded p-12 text-center transition-all duration-300 cursor-pointer
           ${isDragOver 
-            ? 'border-stone-800 bg-stone-50/50' 
-            : 'border-stone-200 hover:border-stone-300 bg-stone-50/30'
+            ? 'border-neutral-800 bg-neutral-50/50' 
+            : 'border-neutral-200 hover:border-neutral-300 bg-neutral-50/30'
           }
         `}
         whileHover={{ scale: 1.01 }}
@@ -97,19 +97,19 @@ export default function UploadZone({ onFilesSelected, isProcessing }) {
           className="flex flex-col items-center"
         >
           <div className={`
-            w-16 h-16 rounded-2xl flex items-center justify-center mb-4 transition-colors duration-300
-            ${isDragOver ? 'bg-stone-100' : 'bg-stone-100'}
+            w-16 h-16 rounded flex items-center justify-center mb-4 transition-colors duration-300
+            ${isDragOver ? 'bg-neutral-100' : 'bg-neutral-100'}
           `}>
-            <Upload className={`w-8 h-8 ${isDragOver ? 'text-stone-900' : 'text-stone-400'}`} />
+            <Upload className={`w-8 h-8 ${isDragOver ? 'text-neutral-900' : 'text-neutral-400'}`} />
           </div>
           
-          <h3 className="text-lg font-semibold text-stone-900 mb-2">
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">
             {isDragOver ? 'Drop files here' : 'Upload Receipts'}
           </h3>
-          <p className="text-stone-500 text-sm mb-4">
+          <p className="text-neutral-500 text-sm mb-4">
             Drag and drop your receipts or click to browse
           </p>
-          <div className="flex items-center gap-3 text-xs text-stone-400">
+          <div className="flex items-center gap-3 text-xs text-neutral-400">
             <span className="flex items-center gap-1">
               <FileText className="w-3 h-3" /> PDF
             </span>
@@ -132,13 +132,13 @@ export default function UploadZone({ onFilesSelected, isProcessing }) {
             className="space-y-3"
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-stone-700">
+              <span className="text-sm font-medium text-neutral-700">
                 {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
               </span>
               <Button
                 onClick={handleUpload}
                 disabled={isProcessing}
-                className="bg-stone-900 hover:bg-stone-800"
+                className="bg-neutral-900 hover:bg-neutral-800"
               >
                 {isProcessing ? (
                   <>
@@ -154,7 +154,7 @@ export default function UploadZone({ onFilesSelected, isProcessing }) {
               </Button>
             </div>
 
-            <div className="bg-white rounded-xl border border-stone-200 divide-y divide-stone-100 overflow-hidden">
+            <div className="bg-white rounded border border-neutral-200 divide-y divide-neutral-100 overflow-hidden">
               {selectedFiles.map((file, index) => (
                 <motion.div
                   key={`${file.name}-${index}`}
@@ -162,25 +162,25 @@ export default function UploadZone({ onFilesSelected, isProcessing }) {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ delay: index * 0.05 }}
-                  className="flex items-center justify-between p-4 hover:bg-stone-50 transition-colors"
+                  className="flex items-center justify-between p-4 hover:bg-neutral-50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
                     {getFileIcon(file)}
                     <div>
-                      <p className="text-sm font-medium text-stone-900 truncate max-w-xs">
+                      <p className="text-sm font-medium text-neutral-900 truncate max-w-xs">
                         {file.name}
                       </p>
-                      <p className="text-xs text-stone-400">
+                      <p className="text-xs text-neutral-400">
                         {formatFileSize(file.size)}
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => removeFile(index)}
-                    className="p-1 hover:bg-stone-200 rounded-lg transition-colors"
+                    className="p-1 hover:bg-neutral-200 rounded-lg transition-colors"
                     disabled={isProcessing}
                   >
-                    <X className="w-4 h-4 text-stone-400" />
+                    <X className="w-4 h-4 text-neutral-400" />
                   </button>
                 </motion.div>
               ))}

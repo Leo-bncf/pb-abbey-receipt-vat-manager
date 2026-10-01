@@ -18,9 +18,9 @@ const gbp = (n) => `£${(Number(n) || 0).toLocaleString('en-GB', { minimumFracti
 
 const statusChip = {
   reviewed: 'text-emerald-700 bg-emerald-50 border-emerald-200',
-  extracted: 'text-slate-600 bg-slate-100 border-slate-200',
+  extracted: 'text-neutral-600 bg-neutral-100 border-neutral-200',
   error: 'text-red-700 bg-red-50 border-red-200',
-  uploaded: 'text-slate-500 bg-slate-50 border-slate-200',
+  uploaded: 'text-neutral-500 bg-neutral-50 border-neutral-200',
   processing: 'text-amber-700 bg-amber-50 border-amber-200',
 };
 
@@ -96,9 +96,9 @@ export default function Dashboard() {
   const newFolder = () => { const n = prompt('New folder name:'); if (n && n.trim()) createFolder.mutate(n.trim()); };
 
   const Th = ({ field, children, right }) => (
-    <th className={`px-4 py-2.5 text-xs font-semibold text-slate-500 ${right ? 'text-right' : 'text-left'}`}>
+    <th className={`px-4 py-2.5 text-xs font-semibold text-neutral-500 ${right ? 'text-right' : 'text-left'}`}>
       {field ? (
-        <button onClick={() => sort(field)} className={`inline-flex items-center gap-1 hover:text-slate-800 ${right ? 'flex-row-reverse' : ''}`}>
+        <button onClick={() => sort(field)} className={`inline-flex items-center gap-1 hover:text-neutral-800 ${right ? 'flex-row-reverse' : ''}`}>
           {children}{sortField === field && (sortDirection === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />)}
         </button>
       ) : children}
@@ -106,10 +106,10 @@ export default function Dashboard() {
   );
 
   const Table = () => (
-    <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+    <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden ">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead className="bg-neutral-50 border-b border-neutral-200">
             <tr>
               <th className="px-4 py-2.5 w-10"><Checkbox checked={selectedIds.length === rows.length && rows.length > 0} onCheckedChange={toggleAll} /></th>
               <Th field="receipt_date">Date</Th>
@@ -122,25 +122,25 @@ export default function Dashboard() {
               <th className="px-4 py-2.5 w-10"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-neutral-100">
             {isLoading ? (
-              <tr><td colSpan={9} className="px-4 py-16 text-center text-slate-400">Loading…</td></tr>
+              <tr><td colSpan={9} className="px-4 py-16 text-center text-neutral-400">Loading…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={9} className="px-4 py-16 text-center text-slate-400">No receipts here</td></tr>
+              <tr><td colSpan={9} className="px-4 py-16 text-center text-neutral-400">No receipts here</td></tr>
             ) : rows.map((r) => (
-              <tr key={r.id} className="hover:bg-slate-50">
+              <tr key={r.id} className="hover:bg-neutral-50">
                 <td className="px-4 py-2.5"><Checkbox checked={selectedIds.includes(r.id)} onCheckedChange={(c) => toggleOne(r.id, c)} /></td>
-                <td className="px-4 py-2.5 text-slate-500 whitespace-nowrap">{r.receipt_date ? format(new Date(r.receipt_date), 'dd/MM/yyyy') : '—'}</td>
+                <td className="px-4 py-2.5 text-neutral-500 whitespace-nowrap">{r.receipt_date ? format(new Date(r.receipt_date), 'dd/MM/yyyy') : '—'}</td>
                 <td className="px-4 py-2.5">
-                  <div className="font-medium text-slate-800">{r.vendor_name || 'Unknown'}</div>
-                  <div className="text-xs text-slate-400 truncate max-w-[220px]">{r.file_name}</div>
+                  <div className="font-medium text-neutral-800">{r.vendor_name || 'Unknown'}</div>
+                  <div className="text-xs text-neutral-400 truncate max-w-[220px]">{r.file_name}</div>
                 </td>
-                <td className="px-4 py-2.5 text-slate-500">{r.country || '—'}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-slate-900">{gbp(r.total_amount)}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-slate-500">{gbp(r.vat_amount)}{r.vat_rate ? <span className="text-slate-300"> · {Math.round(r.vat_rate)}%</span> : ''}</td>
+                <td className="px-4 py-2.5 text-neutral-500">{r.country || '—'}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums font-fig font-semibold text-neutral-900">{gbp(r.total_amount)}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums font-fig text-neutral-500">{gbp(r.vat_amount)}{r.vat_rate ? <span className="text-neutral-300"> · {Math.round(r.vat_rate)}%</span> : ''}</td>
                 <td className="px-4 py-2.5"><span className={`inline-block px-2 py-0.5 rounded text-xs border ${statusChip[r.status] || statusChip.uploaded}`}>{r.needs_review && !r.is_reviewed ? 'review' : r.status}</span></td>
-                <td className="px-4 py-2.5 text-right tabular-nums text-slate-400">{r.confidence_score != null ? `${Math.round(r.confidence_score)}%` : '—'}</td>
-                <td className="px-4 py-2.5 text-right"><button onClick={() => setSelectedReceipt(r)} className="text-slate-400 hover:text-slate-900"><Eye className="w-4 h-4" /></button></td>
+                <td className="px-4 py-2.5 text-right tabular-nums font-fig text-neutral-400">{r.confidence_score != null ? `${Math.round(r.confidence_score)}%` : '—'}</td>
+                <td className="px-4 py-2.5 text-right"><button onClick={() => setSelectedReceipt(r)} className="text-neutral-400 hover:text-neutral-900"><Eye className="w-4 h-4" /></button></td>
               </tr>
             ))}
           </tbody>
@@ -158,7 +158,7 @@ export default function Dashboard() {
       )}
       {isRoot && <Button variant="outline" className="gap-2" onClick={newFolder}><FolderPlus className="w-4 h-4" /> New folder</Button>}
       <Link to={createPageUrl('Reports')}><Button variant="outline" className="gap-2"><Download className="w-4 h-4" /> Export</Button></Link>
-      <Link to={createPageUrl('Upload')}><Button className="gap-2 bg-brand hover:opacity-90 text-white"><Upload className="w-4 h-4" /> Upload</Button></Link>
+      <Link to={createPageUrl('Upload')}><Button className="gap-2 bg-neutral-900 hover:bg-neutral-800 text-white"><Upload className="w-4 h-4" /> Upload</Button></Link>
     </>
   );
 
@@ -174,21 +174,21 @@ export default function Dashboard() {
 
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm mb-4">
-        <button onClick={() => { setCurrentFolderId(null); setSelectedIds([]); }} className={`inline-flex items-center gap-1.5 ${isRoot ? 'text-slate-900 font-medium' : 'text-slate-500 hover:text-slate-900'}`}>
+        <button onClick={() => { setCurrentFolderId(null); setSelectedIds([]); }} className={`inline-flex items-center gap-1.5 ${isRoot ? 'text-neutral-900 font-medium' : 'text-neutral-500 hover:text-neutral-900'}`}>
           <Folder className="w-4 h-4" /> All documents
         </button>
         {!isRoot && (
           <>
-            <ChevronRight className="w-4 h-4 text-slate-300" />
-            <span className="text-slate-900 font-medium">{currentFolder?.name || 'Folder'}</span>
-            <button onClick={() => { const n = prompt('Rename folder:', currentFolder?.name); if (n && n.trim()) renameFolder.mutate({ id: currentFolderId, name: n.trim() }); }} className="ml-1 text-slate-400 hover:text-slate-700"><Pencil className="w-3.5 h-3.5" /></button>
+            <ChevronRight className="w-4 h-4 text-neutral-300" />
+            <span className="text-neutral-900 font-medium">{currentFolder?.name || 'Folder'}</span>
+            <button onClick={() => { const n = prompt('Rename folder:', currentFolder?.name); if (n && n.trim()) renameFolder.mutate({ id: currentFolderId, name: n.trim() }); }} className="ml-1 text-neutral-400 hover:text-neutral-700"><Pencil className="w-3.5 h-3.5" /></button>
           </>
         )}
       </div>
 
       {/* Search */}
       <div className="relative mb-5 max-w-md">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
         <Input placeholder="Search vendor, file, country…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 bg-white" />
       </div>
 
@@ -198,22 +198,22 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
             {folderCards.map((f) => (
               <button key={f.id} onClick={() => { setCurrentFolderId(f.id); setSelectedIds([]); }}
-                className="group flex items-center gap-3 bg-white border border-slate-200 rounded-lg p-4 text-left hover:border-brand hover:shadow-sm transition-all">
-                <div className="w-10 h-10 rounded-md border border-slate-200 flex items-center justify-center shrink-0">
-                  <Folder className="w-5 h-5 text-slate-500" />
+                className="group flex items-center gap-3 bg-white border border-neutral-200 rounded-lg p-4 text-left hover:border-brand hover: transition-all">
+                <div className="w-10 h-10 rounded-md border border-neutral-200 flex items-center justify-center shrink-0">
+                  <Folder className="w-5 h-5 text-neutral-500" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium text-slate-800 truncate">{f.name}</div>
-                  <div className="text-xs text-slate-400">{f.count} receipt{f.count !== 1 ? 's' : ''} · {gbp(f.total)}</div>
+                  <div className="font-medium text-neutral-800 truncate">{f.name}</div>
+                  <div className="text-xs text-neutral-400">{f.count} receipt{f.count !== 1 ? 's' : ''} · {gbp(f.total)}</div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-600" />
+                <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-neutral-600" />
               </button>
             ))}
-            {folderCards.length === 0 && <p className="text-sm text-slate-400">No folders yet — create one to organise receipts.</p>}
+            {folderCards.length === 0 && <p className="text-sm text-neutral-400">No folders yet — create one to organise receipts.</p>}
           </div>
           {rootReceipts.length > 0 && (
             <>
-              <h2 className="text-sm font-semibold text-slate-500 mb-3">Unfiled receipts</h2>
+              <h2 className="text-sm font-semibold text-neutral-500 mb-3">Unfiled receipts</h2>
               <Table />
             </>
           )}
@@ -223,7 +223,7 @@ export default function Dashboard() {
       {(!isRoot || searchQuery) && (
         <>
           {!isRoot && (
-            <button onClick={() => { setCurrentFolderId(null); setSelectedIds([]); }} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 mb-3">
+            <button onClick={() => { setCurrentFolderId(null); setSelectedIds([]); }} className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 mb-3">
               <ArrowLeft className="w-4 h-4" /> Back to all documents
             </button>
           )}
