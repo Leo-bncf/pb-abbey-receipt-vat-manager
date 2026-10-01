@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { base44 } from '@/api/base44Client';
-import AppShell from '@/components/AppShell';
+import AppShell, { StatTile } from '@/components/AppShell';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend
@@ -17,12 +17,13 @@ import {
 import { format, startOfMonth, subMonths } from 'date-fns';
 import * as XLSX from 'xlsx';
 
-// Premium chart palette: ink + brass + warm neutrals
-const COLORS = ['#1c1917', '#a67c3d', '#78716c', '#c0a060', '#44403c', '#d6c2a0', '#a8a29e'];
+// Professional chart palette: navy + slate tones
+const COLORS = ['#243b6b', '#3b5a9a', '#64748b', '#94a3b8', '#cbd5e1', '#1e293b', '#475569'];
 
 export default function Reports() {
-  const [dateRange, setDateRange] = useState('all');
-  const [exportFolder, setExportFolder] = useState(''); // folder id, 'root', or 'all'
+  // Single scope: a folder ('all', 'root', or a folder id) — chosen like the
+  // document explorer. No date-range controls.
+  const [exportFolder, setExportFolder] = useState('all');
 
   const { data: receipts = [] } = useQuery({
     queryKey: ['receipts'],
@@ -34,36 +35,12 @@ export default function Reports() {
     queryFn: () => base44.entities.Folder.list('name'),
   });
 
-  // Filter receipts by date range
+  // The report reflects the selected folder (document).
   const filteredReceipts = useMemo(() => {
-    if (dateRange === 'all') return receipts;
-
-    const now = new Date();
-    let startDate;
-
-    switch (dateRange) {
-      case 'this_month':
-        startDate = startOfMonth(now);
-        break;
-      case 'last_3_months':
-        startDate = startOfMonth(subMonths(now, 3));
-        break;
-      case 'last_6_months':
-        startDate = startOfMonth(subMonths(now, 6));
-        break;
-      case 'last_year':
-        startDate = startOfMonth(subMonths(now, 12));
-        break;
-      default:
-        return receipts;
-    }
-
-    return receipts.filter(r => {
-      // Include receipts without dates when filtering by date
-      if (!r.receipt_date) return true;
-      return new Date(r.receipt_date) >= startDate;
-    });
-  }, [receipts, dateRange]);
+    if (exportFolder === 'all') return receipts;
+    if (exportFolder === 'root') return receipts.filter(r => !r.folder_id);
+    return receipts.filter(r => r.folder_id === exportFolder);
+  }, [receipts, exportFolder]);
 
   // Calculate monthly VAT data
   const monthlyData = useMemo(() => {
@@ -114,21 +91,29 @@ export default function Reports() {
       .slice(0, 10);
   }, [filteredReceipts]);
 
-  // Calculate country breakdown
-  const countryData = useMemo(() => {
-    const countryMap = {};
-    
-    filteredReceipts.forEach(receipt => {
-      const country = receipt.country || 'Unknown';
-      if (!countryMap[country]) {
-        countryMap[country] = { country, vat: 0, total: 0, count: 0 };
-      }
-      countryMap[country].vat += receipt.vat_amount || 0;
-      countryMap[country].total += receipt.total_amount || 0;
-      countryMap[country].count += 1;
-    });
+  // Normalize common country name variants so the breakdown isn't fragmented.
+  const normCountry = (c) => {
+    const k = (c || '').toLowerCase().replace(/[^a-z]/g, '');
+    if (['uk', 'gb', 'gbr', 'unitedkingdom', 'england', 'greatbritain', 'britain', 'scotland', 'wales'].includes(k)) return 'United Kingdom';
+    if (['fr', 'fra', 'france'].includes(k)) return 'France';
+    return c || 'Unknown';
+  };
 
-    return Object.values(countryMap).sort((a, b) => b.vat - a.vat);
+  // Calculate country breakdown (top 5, rest grouped as "Other")
+  const countryData = useMemo(() => {
+    const map = {};
+    filteredReceipts.forEach(r => {
+      const c = normCountry(r.country);
+      map[c] = map[c] || { country: c, vat: 0, total: 0, count: 0 };
+      map[c].vat += r.vat_amount || 0;
+      map[c].total += r.total_amount || 0;
+      map[c].count += 1;
+    });
+    const sorted = Object.values(map).sort((a, b) => b.total - a.total);
+    if (sorted.length <= 6) return sorted;
+    const top = sorted.slice(0, 5);
+    const rest = sorted.slice(5).reduce((a, x) => ({ country: 'Other', vat: a.vat + x.vat, total: a.total + x.total, count: a.count + x.count }), { vat: 0, total: 0, count: 0 });
+    return [...top, { country: 'Other', ...rest }];
   }, [filteredReceipts]);
 
   // Receipt count per folder created in the Dashboard, for the export dropdown.
@@ -391,127 +376,52 @@ export default function Reports() {
     }
   };
 
-  const formatCurrency = (value) => `£${(value || 0).toFixed(2)}`;
+  const formatCurrency = (value) => `£${(Number(value) || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <AppShell title="Reports" subtitle="Generate and export VAT summaries">
       <div className="max-w-full">
-        {/* Export controls */}
-        <div className="flex flex-col md:flex-row md:items-center justify-end gap-4 mb-8">
-          <div className="flex gap-3 items-center flex-wrap">
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger className="w-40 bg-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="this_month">This Month</SelectItem>
-                <SelectItem value="last_3_months">Last 3 Months</SelectItem>
-                <SelectItem value="last_6_months">Last 6 Months</SelectItem>
-                <SelectItem value="last_year">Last Year</SelectItem>
-                <SelectItem value="all">All Time</SelectItem>
-              </SelectContent>
-            </Select>
-            {/* Folder to export (folders created in the Dashboard) */}
-            <div className="flex gap-2 items-center border border-stone-200 bg-white rounded-lg px-3 py-1.5">
-              <Folder className="w-4 h-4 text-stone-400" />
-              <Select value={exportFolder} onValueChange={setExportFolder}>
-                <SelectTrigger className="w-56 border-0 p-0 h-auto shadow-none focus:ring-0">
-                  <SelectValue placeholder="Select folder..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All folders ({receipts.length})</SelectItem>
-                  {folders.map(f => (
-                    <SelectItem key={f.id} value={f.id}>
-                      {f.name} ({folderCounts.counts[f.id] || 0})
-                    </SelectItem>
-                  ))}
-                  {folderCounts.root > 0 && (
-                    <SelectItem value="root">No folder ({folderCounts.root})</SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
+        {/* Document picker + export */}
+        <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-5 mb-8">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Choose a document to report on</p>
+              <p className="text-xs text-slate-500">Select a folder from your repository, then export.</p>
             </div>
-
-            <Button
-              onClick={() => runExport('xlsx')}
-              disabled={isExporting || !exportFolder}
-              className="bg-stone-900 hover:bg-stone-800 gap-2 disabled:opacity-50"
-            >
-              <Download className="w-4 h-4" />
-              {isExporting ? 'Exporting...' : 'Excel'}
-            </Button>
-            <Button
-              onClick={() => runExport('csv')}
-              disabled={isExporting || !exportFolder}
-              variant="outline"
-              className="gap-2 disabled:opacity-50"
-            >
-              <Download className="w-4 h-4" />
-              CSV
-            </Button>
+            <div className="flex gap-2 shrink-0">
+              <Button onClick={() => runExport('xlsx')} disabled={isExporting} className="bg-brand hover:opacity-90 text-white gap-2 disabled:opacity-50">
+                <Download className="w-4 h-4" /> {isExporting ? 'Exporting…' : 'Excel'}
+              </Button>
+              <Button onClick={() => runExport('csv')} disabled={isExporting} variant="outline" className="gap-2 disabled:opacity-50">
+                <Download className="w-4 h-4" /> CSV
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[{ id: 'all', name: 'All documents', n: receipts.length },
+              ...folders.map(f => ({ id: f.id, name: f.name, n: folderCounts.counts[f.id] || 0 })),
+              ...(folderCounts.root > 0 ? [{ id: 'root', name: 'Unfiled', n: folderCounts.root }] : [])]
+              .map(opt => {
+                const active = exportFolder === opt.id;
+                return (
+                  <button key={opt.id} onClick={() => setExportFolder(opt.id)}
+                    className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                      active ? 'border-brand bg-brand/5 text-brand font-medium' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'}`}>
+                    <Folder className={`w-4 h-4 ${active ? 'text-brand' : 'text-slate-400'}`} />
+                    {opt.name}
+                    <span className={`text-xs ${active ? 'text-brand/70' : 'text-slate-400'}`}>{opt.n}</span>
+                  </button>
+                );
+              })}
           </div>
         </div>
 
-        {/* Summary Cards */}
+        {/* Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-xl border border-stone-200 p-6"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center">
-                <Coins className="w-5 h-5 text-stone-900" />
-              </div>
-            </div>
-            <p className="text-sm text-stone-500 mb-1">Total Spend</p>
-            <p className="font-display text-3xl font-semibold text-stone-900">{formatCurrency(summary.totalAmount)}</p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl border border-stone-200 p-6"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                <Percent className="w-5 h-5 text-emerald-600" />
-              </div>
-            </div>
-            <p className="text-sm text-stone-500 mb-1">Total VAT</p>
-            <p className="text-2xl font-bold text-emerald-600">{formatCurrency(summary.totalVAT)}</p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl border border-stone-200 p-6"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-blue-600" />
-              </div>
-            </div>
-            <p className="text-sm text-stone-500 mb-1">Vendors</p>
-            <p className="font-display text-3xl font-semibold text-stone-900">{summary.uniqueVendors}</p>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white rounded-xl border border-stone-200 p-6"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center">
-                <MapPin className="w-5 h-5 text-stone-900" />
-              </div>
-            </div>
-            <p className="text-sm text-stone-500 mb-1">Countries</p>
-            <p className="font-display text-3xl font-semibold text-stone-900">{summary.uniqueCountries}</p>
-          </motion.div>
+          <StatTile label="Total spend" value={formatCurrency(summary.totalAmount)} />
+          <StatTile label="Total VAT" value={formatCurrency(summary.totalVAT)} />
+          <StatTile label="Vendors" value={summary.uniqueVendors} />
+          <StatTile label="Countries" value={summary.uniqueCountries} />
         </div>
 
         {/* Charts */}
@@ -544,18 +454,18 @@ export default function Reports() {
                       <Line 
                         type="monotone" 
                         dataKey="vat" 
-                        stroke="#1c1917" 
+                        stroke="#0f172a" 
                         strokeWidth={2}
                         name="VAT"
-                        dot={{ fill: "#1c1917" }}
+                        dot={{ fill: "#0f172a" }}
                       />
                       <Line 
                         type="monotone" 
                         dataKey="total" 
-                        stroke="#a67c3d" 
+                        stroke="#243b6b" 
                         strokeWidth={2}
                         name="Total"
-                        dot={{ fill: "#a67c3d" }}
+                        dot={{ fill: "#243b6b" }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -585,24 +495,21 @@ export default function Reports() {
                         data={countryData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        fill="#8884d8"
+                        innerRadius={55}
+                        outerRadius={95}
                         paddingAngle={2}
-                        dataKey="vat"
+                        dataKey="total"
                         nameKey="country"
-                        label={({ country, percent }) => 
-                          `${country} (${(percent * 100).toFixed(0)}%)`
-                        }
                       >
                         {countryData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip 
-                        formatter={(value) => [`£${value.toFixed(2)}`, 'VAT']}
-                        contentStyle={{ borderRadius: '8px' }}
+                      <Tooltip
+                        formatter={(value) => [formatCurrency(value), 'Spend']}
+                        contentStyle={{ borderRadius: '8px', fontSize: '12px' }}
                       />
+                      <Legend verticalAlign="middle" align="right" layout="vertical" iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
@@ -641,8 +548,8 @@ export default function Reports() {
                       contentStyle={{ borderRadius: '8px' }}
                     />
                     <Legend />
-                    <Bar dataKey="total" fill="#1c1917" name="Total" radius={[0, 4, 4, 0]} />
-                    <Bar dataKey="vat" fill="#a67c3d" name="VAT" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="total" fill="#0f172a" name="Total" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="vat" fill="#243b6b" name="VAT" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
