@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
-import AppShell, { StatTile } from '@/components/AppShell';
+import AppShell, { StatStrip } from '@/components/AppShell';
 import ReceiptDetailModal from '../components/receipts/ReceiptDetailModal';
 import { format } from 'date-fns';
 
@@ -144,6 +144,17 @@ export default function Dashboard() {
               </tr>
             ))}
           </tbody>
+          {rows.length > 0 && (
+            <tfoot className="border-t-2 border-neutral-300 bg-neutral-50">
+              <tr>
+                <td className="px-4 py-3"></td>
+                <td className="px-4 py-3 text-[11px] uppercase tracking-[0.1em] font-medium text-neutral-500" colSpan={3}>Total · {rows.length} receipt{rows.length !== 1 ? 's' : ''}</td>
+                <td className="px-4 py-3 text-right tabular-nums font-fig font-semibold text-neutral-900">{gbp(rows.reduce((s, r) => s + (r.total_amount || 0), 0))}</td>
+                <td className="px-4 py-3 text-right tabular-nums font-fig font-semibold text-neutral-900">{gbp(rows.reduce((s, r) => s + (r.vat_amount || 0), 0))}</td>
+                <td colSpan={3}></td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>
@@ -164,12 +175,14 @@ export default function Dashboard() {
 
   return (
     <AppShell title="Documents" subtitle={`${stats.count} receipts · ${gbp(stats.total)} · VAT ${gbp(stats.vat)}`} actions={actions}>
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatTile label="Total spend" value={gbp(stats.total)} />
-        <StatTile label="Total VAT" value={gbp(stats.vat)} />
-        <StatTile label="Receipts" value={stats.count} />
-        <StatTile label="Vendors" value={stats.vendors} />
+      {/* Stats — ledger strip */}
+      <div className="mb-6">
+        <StatStrip items={[
+          { label: 'Total spend', value: gbp(stats.total) },
+          { label: 'Total VAT', value: gbp(stats.vat) },
+          { label: 'Receipts', value: stats.count },
+          { label: 'Vendors', value: stats.vendors },
+        ]} />
       </div>
 
       {/* Breadcrumb */}

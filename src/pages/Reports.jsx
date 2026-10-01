@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { base44 } from '@/api/base44Client';
-import AppShell, { StatTile } from '@/components/AppShell';
+import AppShell, { StatStrip } from '@/components/AppShell';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend
@@ -416,12 +416,14 @@ export default function Reports() {
           </div>
         </div>
 
-        {/* Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <StatTile label="Total spend" value={formatCurrency(summary.totalAmount)} />
-          <StatTile label="Total VAT" value={formatCurrency(summary.totalVAT)} />
-          <StatTile label="Vendors" value={summary.uniqueVendors} />
-          <StatTile label="Countries" value={summary.uniqueCountries} />
+        {/* Summary — ledger strip */}
+        <div className="mb-8">
+          <StatStrip items={[
+            { label: 'Total spend', value: formatCurrency(summary.totalAmount) },
+            { label: 'Total VAT', value: formatCurrency(summary.totalVAT) },
+            { label: 'Vendors', value: summary.uniqueVendors },
+            { label: 'Countries', value: summary.uniqueCountries },
+          ]} />
         </div>
 
         {/* Charts */}

@@ -103,3 +103,18 @@ export function StatTile({ label, value, sub, accent }) {
     </div>
   );
 }
+
+// Ledger KPI strip — one bordered row, values separated by hairline rules.
+export function StatStrip({ items }) {
+  return (
+    <div className="bg-white border rule flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-neutral-200">
+      {items.map((it, i) => (
+        <div key={i} className="flex-1 px-5 py-4">
+          <p className="text-[11px] uppercase tracking-[0.1em] text-neutral-400 mb-1.5">{it.label}</p>
+          <p className={`font-fig text-[20px] font-medium ${it.accent ? 'text-red-700' : 'text-neutral-900'}`}>{it.value}</p>
+          {it.sub && <p className="text-[11px] text-neutral-400 mt-0.5 font-fig">{it.sub}</p>}
+        </div>
+      ))}
+    </div>
+  );
+}
