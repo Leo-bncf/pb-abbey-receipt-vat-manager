@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Folder } from 'lucide-react';
+import { Folder, FolderPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import UploadZone from '../components/upload/UploadZone';
 import AppShell from '@/components/AppShell';
@@ -707,38 +707,59 @@ export default function Upload() {
           </div>
         )}
 
-        {/* Folder Selection */}
-        {folders.length > 0 && (
-          <div className="max-w-xs mb-6">
-            <label className="text-xs uppercase tracking-[0.12em] text-stone-500 block mb-2 flex items-center gap-2">
-              <Folder className="w-3.5 h-3.5" />
-              Save to folder (optional)
+        {/* Folder selection — REQUIRED before uploading */}
+        {!isProcessing && processedFiles.length === 0 && (
+          <div className="max-w-md mb-6">
+            <label className="text-xs font-medium text-slate-600 block mb-2 flex items-center gap-2">
+              <Folder className="w-4 h-4" /> Choose a folder <span className="text-red-500">*</span>
             </label>
-            <Select value={selectedFolderId || ''} onValueChange={(v) => setSelectedFolderId(v || null)}>
-              <SelectTrigger className="bg-white border-stone-900/10">
-                <SelectValue placeholder="No folder (root)" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>No folder (root)</SelectItem>
-                {folders.map(folder => (
-                  <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Select value={selectedFolderId || ''} onValueChange={(v) => setSelectedFolderId(v || null)}>
+                <SelectTrigger className="bg-white border-slate-300">
+                  <SelectValue placeholder="Select a folder…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {folders.map(folder => (
+                    <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                className="gap-2 border-slate-300 shrink-0"
+                onClick={async () => {
+                  const name = prompt('New folder name:');
+                  if (name && name.trim()) {
+                    const f = await base44.entities.Folder.create({ name: name.trim() });
+                    await queryClient.invalidateQueries({ queryKey: ['folders'] });
+                    if (f?.id) setSelectedFolderId(f.id);
+                  }
+                }}
+              >
+                <FolderPlus className="w-4 h-4" /> New
+              </Button>
+            </div>
+            {!selectedFolderId && (
+              <p className="text-xs text-slate-400 mt-2">Receipts must be filed in a folder. Pick one (or create it) to start uploading.</p>
+            )}
           </div>
         )}
 
-        {/* Upload Zone */}
+        {/* Upload Zone — only once a folder is selected */}
         {!isProcessing && processedFiles.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <UploadZone
-              onFilesSelected={handleFilesSelected}
-              isProcessing={isProcessing}
-            />
+            {selectedFolderId ? (
+              <UploadZone onFilesSelected={handleFilesSelected} isProcessing={isProcessing} />
+            ) : (
+              <div className="border-2 border-dashed border-slate-200 rounded-xl p-12 text-center bg-slate-50/50">
+                <Folder className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                <p className="text-sm text-slate-400">Choose a folder above to begin.</p>
+              </div>
+            )}
             {uploadHistorySection}
           </motion.div>
         )}
