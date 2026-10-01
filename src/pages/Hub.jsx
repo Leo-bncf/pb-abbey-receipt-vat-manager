@@ -1,70 +1,74 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Receipt, Home, LogOut, ArrowUpRight } from 'lucide-react';
+import { Receipt, Home, LogOut, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 
 const apps = [
   {
     to: '/Dashboard',
     name: 'Receipts & VAT',
-    desc: 'Scan receipts, extract VAT, export quarterly reports.',
+    desc: 'Scan and store your receipts, and see how much VAT you have paid.',
     icon: Receipt,
-    n: '01',
   },
   {
     to: '/hallmark',
     name: 'Hallmark',
-    desc: 'Property management — tenants, units, rent & VAT.',
+    desc: 'Manage the rental properties — tenants, units and rent due.',
     icon: Home,
-    n: '02',
   },
 ];
 
 export default function Hub() {
   const { user, logout } = useAuth();
   return (
-    <div className="min-h-screen bg-background text-stone-900">
-      <div className="max-w-5xl mx-auto px-6">
-        {/* Top bar */}
-        <div className="flex items-center justify-between py-6 border-b border-stone-900/10">
-          <span className="text-xs tracking-[0.25em] uppercase text-stone-500">PB Abbey Ltd</span>
-          <button onClick={() => logout()} className="inline-flex items-center gap-2 text-xs tracking-wide text-stone-500 hover:text-stone-900 transition-colors">
-            <LogOut className="w-3.5 h-3.5" /> Sign out
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col">
+      {/* Top bar */}
+      <header className="bg-white border-b border-slate-200">
+        <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-md bg-brand flex items-center justify-center">
+              <Receipt className="w-4 h-4 text-white" />
+            </div>
+            <span className="font-semibold text-slate-900 text-lg">PB Abbey</span>
+          </div>
+          <button onClick={() => logout()} className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 transition-colors">
+            <LogOut className="w-4 h-4" /> Sign out
           </button>
         </div>
+      </header>
 
-        {/* Hero */}
-        <div className="pt-20 pb-16">
-          <p className="text-sm text-stone-500 mb-4">{user?.email}</p>
-          <h1 className="font-display text-6xl md:text-7xl font-semibold leading-[0.95] tracking-tight text-stone-900">
-            Good day.
-          </h1>
-          <p className="mt-5 text-lg text-stone-500 max-w-md">
-            Your finance & property suite. Choose a workspace.
+      {/* Welcome */}
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-16">
+        <div className="w-full max-w-3xl">
+          <div className="text-center mb-12">
+            <h1 className="text-3xl md:text-4xl font-semibold text-slate-900 tracking-tight">Welcome</h1>
+            <p className="text-lg text-slate-500 mt-3">What would you like to open?</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {apps.map((a) => (
+              <Link
+                key={a.to}
+                to={a.to}
+                className="group bg-white border-2 border-slate-200 rounded-2xl p-8 text-center hover:border-brand hover:shadow-lg transition-all flex flex-col items-center"
+              >
+                <div className="w-20 h-20 rounded-2xl bg-brand/10 flex items-center justify-center mb-5 group-hover:bg-brand transition-colors">
+                  <a.icon className="w-10 h-10 text-brand group-hover:text-white transition-colors" />
+                </div>
+                <h2 className="text-2xl font-semibold text-slate-900 mb-2">{a.name}</h2>
+                <p className="text-slate-500 leading-relaxed mb-6 flex-1">{a.desc}</p>
+                <span className="inline-flex items-center gap-2 bg-brand text-white font-medium px-6 py-3 rounded-xl group-hover:gap-3 transition-all">
+                  Open <ArrowRight className="w-5 h-5" />
+                </span>
+              </Link>
+            ))}
+          </div>
+
+          <p className="text-center text-sm text-slate-400 mt-12">
+            Signed in as {user?.email}
           </p>
         </div>
-
-        {/* App list */}
-        <div className="border-t border-stone-900/10">
-          {apps.map((a) => (
-            <Link key={a.to} to={a.to} className="group block border-b border-stone-900/10">
-              <div className="flex items-center gap-6 py-8 transition-all group-hover:pl-3">
-                <span className="font-display text-sm text-brand w-8">{a.n}</span>
-                <div className="w-12 h-12 rounded-full border border-stone-900/15 flex items-center justify-center shrink-0 group-hover:bg-stone-900 group-hover:text-white transition-colors">
-                  <a.icon className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h2 className="font-display text-2xl font-semibold text-stone-900">{a.name}</h2>
-                  <p className="text-stone-500 mt-0.5">{a.desc}</p>
-                </div>
-                <ArrowUpRight className="w-6 h-6 text-stone-300 group-hover:text-stone-900 group-hover:-translate-y-1 group-hover:translate-x-1 transition-all shrink-0" />
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        <p className="py-10 text-xs text-stone-400">© {new Date().getFullYear()} PB Abbey Ltd · Barnstaple</p>
-      </div>
+      </main>
     </div>
   );
 }
