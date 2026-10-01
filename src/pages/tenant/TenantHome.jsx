@@ -55,7 +55,7 @@ export default function TenantHome() {
     <div className="min-h-screen bg-background text-neutral-800">
       {/* Top bar */}
       <header className="bg-white border-b border-neutral-200">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="w-full px-6 md:px-10 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className="font-semibold text-neutral-900">PB Abbey</span>
             <span className="text-neutral-300">/</span>
@@ -67,7 +67,7 @@ export default function TenantHome() {
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-6 py-7">
+      <div className="w-full px-6 md:px-10 py-7">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Tenant</h1>
           <p className="text-sm text-neutral-500 mt-0.5">Rental properties, tenants and rent.</p>
