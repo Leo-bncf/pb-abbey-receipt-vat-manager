@@ -195,25 +195,40 @@ export default function Dashboard() {
       {/* ROOT: folder explorer + loose receipts. FOLDER: just the table */}
       {isRoot && !searchQuery && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
-            {folderCards.map((f) => (
-              <button key={f.id} onClick={() => { setCurrentFolderId(f.id); setSelectedIds([]); }}
-                className="group flex items-center gap-3 bg-white border border-neutral-200 rounded-lg p-4 text-left hover:border-brand hover: transition-all">
-                <div className="w-10 h-10 rounded-md border border-neutral-200 flex items-center justify-center shrink-0">
-                  <Folder className="w-5 h-5 text-neutral-500" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-neutral-800 truncate">{f.name}</div>
-                  <div className="text-xs text-neutral-400">{f.count} receipt{f.count !== 1 ? 's' : ''} · {gbp(f.total)}</div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-neutral-600" />
-              </button>
-            ))}
-            {folderCards.length === 0 && <p className="text-sm text-neutral-400">No folders yet — create one to organise receipts.</p>}
+          {/* Folders — dense ledger table */}
+          <div className="bg-white border rule overflow-hidden mb-8">
+            <table className="w-full text-sm">
+              <thead className="bg-neutral-50 border-b rule">
+                <tr>
+                  <th className="px-4 py-2.5 text-left text-[11px] uppercase tracking-[0.1em] font-medium text-neutral-400">Folder</th>
+                  <th className="px-4 py-2.5 text-right text-[11px] uppercase tracking-[0.1em] font-medium text-neutral-400">Receipts</th>
+                  <th className="px-4 py-2.5 text-right text-[11px] uppercase tracking-[0.1em] font-medium text-neutral-400">Total</th>
+                  <th className="px-4 py-2.5 w-8"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-200">
+                {folderCards.map((f) => (
+                  <tr key={f.id} onClick={() => { setCurrentFolderId(f.id); setSelectedIds([]); }}
+                    className="group cursor-pointer hover:bg-neutral-50">
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center gap-2.5 font-medium text-neutral-800">
+                        <Folder className="w-4 h-4 text-neutral-400" strokeWidth={1.75} /> {f.name}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums font-fig text-neutral-600">{f.count}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-fig font-medium text-neutral-900">{gbp(f.total)}</td>
+                    <td className="px-4 py-3 text-right"><ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-neutral-700" /></td>
+                  </tr>
+                ))}
+                {folderCards.length === 0 && (
+                  <tr><td colSpan={4} className="px-4 py-10 text-center text-neutral-400">No folders yet — create one to organise receipts.</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
           {rootReceipts.length > 0 && (
             <>
-              <h2 className="text-sm font-semibold text-neutral-500 mb-3">Unfiled receipts</h2>
+              <h2 className="text-[11px] uppercase tracking-[0.1em] font-medium text-neutral-400 mb-3">Unfiled receipts</h2>
               <Table />
             </>
           )}
