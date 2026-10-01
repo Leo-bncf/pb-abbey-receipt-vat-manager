@@ -44,17 +44,9 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<Hub />} />
       {/* Hallmark — property management */}
       <Route path="/hallmark" element={<HallmarkHome />} />
-      {/* Scanner (Receipts & VAT) pages with their layout */}
+      {/* Scanner (Receipts & VAT) pages — each self-contains AppShell */}
       {Object.entries(Pages).map(([path, Page]) => (
-        <Route
-          key={path}
-          path={`/${path}`}
-          element={
-            <LayoutWrapper currentPageName={path}>
-              <Page />
-            </LayoutWrapper>
-          }
-        />
+        <Route key={path} path={`/${path}`} element={<Page />} />
       ))}
       <Route path="*" element={<PageNotFound />} />
     </Routes>

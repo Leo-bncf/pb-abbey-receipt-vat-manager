@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { base44 } from '@/api/base44Client';
+import AppShell from '@/components/AppShell';
 import ReceiptReviewPanel from '../components/admin/ReceiptReviewPanel';
 import DuplicatesTab from '../components/admin/DuplicatesTab';
 import StatsCard from '../components/stats/StatsCard';
@@ -125,18 +126,8 @@ export default function Admin() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center">
-            <Shield className="w-6 h-6 text-stone-900" />
-          </div>
-          <div>
-            <h1 className="font-display text-3xl font-semibold text-stone-900">Admin Panel</h1>
-            <p className="text-stone-500">Review receipts and train AI accuracy</p>
-          </div>
-        </div>
+    <AppShell title="Admin" subtitle="Review receipts and manage duplicates">
+      <div className="max-w-full">
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -390,6 +381,6 @@ export default function Admin() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>
+    </AppShell>
   );
 }

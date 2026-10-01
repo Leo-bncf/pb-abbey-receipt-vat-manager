@@ -9,14 +9,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { base44 } from '@/api/base44Client';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, 
+import AppShell from '@/components/AppShell';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
 import { format, startOfMonth, subMonths } from 'date-fns';
 import * as XLSX from 'xlsx';
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+// Premium chart palette: ink + brass + warm neutrals
+const COLORS = ['#1c1917', '#a67c3d', '#78716c', '#c0a060', '#44403c', '#d6c2a0', '#a8a29e'];
 
 export default function Reports() {
   const [dateRange, setDateRange] = useState('all');
@@ -392,19 +394,10 @@ export default function Reports() {
   const formatCurrency = (value) => `£${(value || 0).toFixed(2)}`;
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center">
-              <FileSpreadsheet className="w-6 h-6 text-stone-900" />
-            </div>
-            <div>
-              <h1 className="font-display text-3xl font-semibold text-stone-900">VAT Reports</h1>
-              <p className="text-stone-500">Generate and export VAT summaries</p>
-            </div>
-          </div>
+    <AppShell title="Reports" subtitle="Generate and export VAT summaries">
+      <div className="max-w-full">
+        {/* Export controls */}
+        <div className="flex flex-col md:flex-row md:items-center justify-end gap-4 mb-8">
           <div className="flex gap-3 items-center flex-wrap">
             <Select value={dateRange} onValueChange={setDateRange}>
               <SelectTrigger className="w-40 bg-white">
@@ -540,7 +533,7 @@ export default function Reports() {
                 <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={monthlyData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e7e2d8" />
                       <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                       <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `£${v}`} />
                       <Tooltip 
@@ -551,18 +544,18 @@ export default function Reports() {
                       <Line 
                         type="monotone" 
                         dataKey="vat" 
-                        stroke="#6366f1" 
+                        stroke="#1c1917" 
                         strokeWidth={2}
                         name="VAT"
-                        dot={{ fill: '#6366f1' }}
+                        dot={{ fill: "#1c1917" }}
                       />
                       <Line 
                         type="monotone" 
                         dataKey="total" 
-                        stroke="#10b981" 
+                        stroke="#a67c3d" 
                         strokeWidth={2}
                         name="Total"
-                        dot={{ fill: '#10b981' }}
+                        dot={{ fill: "#a67c3d" }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -635,7 +628,7 @@ export default function Reports() {
               <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={vendorData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e7e2d8" />
                     <XAxis type="number" tickFormatter={(v) => `£${v}`} tick={{ fontSize: 12 }} />
                     <YAxis 
                       type="category" 
@@ -648,8 +641,8 @@ export default function Reports() {
                       contentStyle={{ borderRadius: '8px' }}
                     />
                     <Legend />
-                    <Bar dataKey="total" fill="#6366f1" name="Total" radius={[0, 4, 4, 0]} />
-                    <Bar dataKey="vat" fill="#10b981" name="VAT" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="total" fill="#1c1917" name="Total" radius={[0, 4, 4, 0]} />
+                    <Bar dataKey="vat" fill="#a67c3d" name="VAT" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -657,6 +650,6 @@ export default function Reports() {
           </Card>
         </motion.div>
       </div>
-    </div>
+    </AppShell>
   );
 }

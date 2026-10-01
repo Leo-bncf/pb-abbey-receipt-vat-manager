@@ -184,7 +184,15 @@ export default {
         }
       });
 
-      return json({ receipts: perPage.flat(), ocr_pages: pages.length, errors: pageErrors }, 200, origin);
+      // Normalize confidence to a 0-100 integer (the model sometimes returns 0-1).
+      const receipts = perPage.flat().map((r) => {
+        let c = Number(r.confidence_score);
+        if (!isFinite(c)) c = 50;
+        if (c > 0 && c <= 1) c = c * 100;
+        r.confidence_score = Math.round(Math.max(0, Math.min(100, c)));
+        return r;
+      });
+      return json({ receipts, ocr_pages: pages.length, errors: pageErrors }, 200, origin);
     } catch (e) {
       return json({ error: String(e?.message || e) }, 502, origin);
     }

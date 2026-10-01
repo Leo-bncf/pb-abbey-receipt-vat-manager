@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Folder } from 'lucide-react';
 import { format } from 'date-fns';
 import UploadZone from '../components/upload/UploadZone';
+import AppShell from '@/components/AppShell';
 import { createPageUrl } from '@/utils';
 
 // A single source PDF/image becomes several receipts named "doc.pdf [2/5]".
@@ -690,8 +691,8 @@ export default function Upload() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-4xl mx-auto px-6 py-12">
+    <AppShell title="Upload" subtitle="Scan receipts with AI">
+      <div className="max-w-3xl mx-auto">
         {/* base44 AI credit limit reached */}
         {limitReached && (
           <div className="mb-8 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
@@ -706,49 +707,26 @@ export default function Upload() {
           </div>
         )}
 
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
-        >
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-stone-100 mb-6">
-            <FileText className="w-8 h-8 text-stone-900" />
+        {/* Folder Selection */}
+        {folders.length > 0 && (
+          <div className="max-w-xs mb-6">
+            <label className="text-xs uppercase tracking-[0.12em] text-stone-500 block mb-2 flex items-center gap-2">
+              <Folder className="w-3.5 h-3.5" />
+              Save to folder (optional)
+            </label>
+            <Select value={selectedFolderId || ''} onValueChange={(v) => setSelectedFolderId(v || null)}>
+              <SelectTrigger className="bg-white border-stone-900/10">
+                <SelectValue placeholder="No folder (root)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={null}>No folder (root)</SelectItem>
+                {folders.map(folder => (
+                  <SelectItem key={folder.id} value={folder.id}>{folder.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <h1 className="font-display text-4xl font-semibold text-stone-900 mb-3">
-            Upload Receipts
-          </h1>
-          <p className="text-stone-500 max-w-md mx-auto mb-6">
-            Upload your receipts and our AI will automatically extract vendor details, amounts, and calculate VAT.
-          </p>
-
-          {/* Folder Selection */}
-          {folders.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-xs mx-auto"
-            >
-              <label className="text-sm font-medium text-stone-700 block mb-2 flex items-center gap-2">
-                <Folder className="w-4 h-4" />
-                Save to Folder (optional)
-              </label>
-              <Select value={selectedFolderId || ''} onValueChange={(v) => setSelectedFolderId(v || null)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="No folder (root)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={null}>No folder (root)</SelectItem>
-                  {folders.map(folder => (
-                    <SelectItem key={folder.id} value={folder.id}>
-                      {folder.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </motion.div>
-          )}
-          </motion.div>
+        )}
 
         {/* Upload Zone */}
         {!isProcessing && processedFiles.length === 0 && (
@@ -943,6 +921,6 @@ export default function Upload() {
           </motion.div>
         )}
       </div>
-    </div>
+    </AppShell>
   );
 }
