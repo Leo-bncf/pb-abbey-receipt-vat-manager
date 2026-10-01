@@ -10,7 +10,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import LoginForm from '@/components/LoginForm';
 import Hub from '@/pages/Hub';
-import HallmarkHome from '@/pages/hallmark/HallmarkHome';
+import TenantHome from '@/pages/tenant/TenantHome';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -42,8 +42,9 @@ const AuthenticatedApp = () => {
     <Routes>
       {/* Hub landing */}
       <Route path="/" element={<Hub />} />
-      {/* Hallmark — property management */}
-      <Route path="/hallmark" element={<HallmarkHome />} />
+      {/* Tenant — property management */}
+      <Route path="/tenant" element={<TenantHome />} />
+      <Route path="/hallmark" element={<TenantHome />} />
       {/* Scanner (Receipts & VAT) pages — each self-contains AppShell */}
       {Object.entries(Pages).map(([path, Page]) => (
         <Route key={path} path={`/${path}`} element={<Page />} />

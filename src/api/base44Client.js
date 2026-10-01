@@ -120,7 +120,7 @@ export const base44 = {
     ReceiptCorrection: table('receipt_corrections'),
     AIFeedback: table('ai_feedback'),
     VATRate: table('vat_rates'),
-    // Hallmark (property management)
+    // Tenant (property management)
     Tenant: table('tenants'),
     Unit: table('units'),
     RentPayment: table('rent_payments'),

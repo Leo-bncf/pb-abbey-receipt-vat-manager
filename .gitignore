@@ -36,3 +36,4 @@ base44/.app.jsonc
 !.dev.vars.example
 !.env.example
 .env.local
+.hallmark/

@@ -140,7 +140,7 @@ export default function Dashboard() {
                 <td className="px-4 py-2.5 text-right tabular-nums text-slate-500">{gbp(r.vat_amount)}{r.vat_rate ? <span className="text-slate-300"> · {Math.round(r.vat_rate)}%</span> : ''}</td>
                 <td className="px-4 py-2.5"><span className={`inline-block px-2 py-0.5 rounded text-xs border ${statusChip[r.status] || statusChip.uploaded}`}>{r.needs_review && !r.is_reviewed ? 'review' : r.status}</span></td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-slate-400">{r.confidence_score != null ? `${Math.round(r.confidence_score)}%` : '—'}</td>
-                <td className="px-4 py-2.5 text-right"><button onClick={() => setSelectedReceipt(r)} className="text-slate-400 hover:text-brand"><Eye className="w-4 h-4" /></button></td>
+                <td className="px-4 py-2.5 text-right"><button onClick={() => setSelectedReceipt(r)} className="text-slate-400 hover:text-slate-900"><Eye className="w-4 h-4" /></button></td>
               </tr>
             ))}
           </tbody>
@@ -199,14 +199,14 @@ export default function Dashboard() {
             {folderCards.map((f) => (
               <button key={f.id} onClick={() => { setCurrentFolderId(f.id); setSelectedIds([]); }}
                 className="group flex items-center gap-3 bg-white border border-slate-200 rounded-lg p-4 text-left hover:border-brand hover:shadow-sm transition-all">
-                <div className="w-10 h-10 rounded-lg bg-brand/10 flex items-center justify-center shrink-0">
-                  <Folder className="w-5 h-5 text-brand" />
+                <div className="w-10 h-10 rounded-md border border-slate-200 flex items-center justify-center shrink-0">
+                  <Folder className="w-5 h-5 text-slate-500" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-medium text-slate-800 truncate">{f.name}</div>
                   <div className="text-xs text-slate-400">{f.count} receipt{f.count !== 1 ? 's' : ''} · {gbp(f.total)}</div>
                 </div>
-                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand" />
+                <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-600" />
               </button>
             ))}
             {folderCards.length === 0 && <p className="text-sm text-slate-400">No folders yet — create one to organise receipts.</p>}
