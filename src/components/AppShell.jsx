@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { Receipt, LayoutGrid } from 'lucide-react';
 
-// Shared premium frame for the Receipts & VAT app — matches Hallmark:
-// ink header with a brass hairline + serif wordmark, then horizontal tabs.
+// Shared professional frame for the Receipts & VAT app — clean accounting look:
+// white top bar, navy brand mark, underlined tabs. No serif, no dark header.
 const TABS = [
   { label: 'Receipts', to: '/Dashboard' },
   { label: 'Upload', to: '/Upload' },
@@ -14,32 +14,33 @@ const TABS = [
 export default function AppShell({ children, title, subtitle, actions }) {
   const { pathname } = useLocation();
   return (
-    <div className="min-h-screen bg-background text-stone-900">
-      {/* Ink header */}
-      <div className="bg-stone-950 text-white">
-        <div className="max-w-6xl mx-auto px-6 pt-6">
-          <div className="flex items-end justify-between">
-            <div>
-              <div className="h-px w-10 bg-brand mb-4" />
-              <h1 className="font-display text-3xl font-semibold tracking-tight">Receipts &amp; VAT</h1>
-              <p className="text-xs tracking-[0.2em] uppercase text-white/40 mt-1">PB Abbey</p>
-            </div>
-            <Link to="/" className="inline-flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors mb-1">
-              <ArrowLeft className="w-4 h-4" /> Hub
+    <div className="min-h-screen bg-background text-slate-800">
+      {/* Top bar */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="flex items-center justify-between h-14">
+            <Link to="/" className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-md bg-brand flex items-center justify-center">
+                <Receipt className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-semibold text-slate-900">PB Abbey</span>
+              <span className="text-slate-300">/</span>
+              <span className="text-sm text-slate-500">Receipts &amp; VAT</span>
+            </Link>
+            <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-900 transition-colors">
+              <LayoutGrid className="w-4 h-4" /> All apps
             </Link>
           </div>
           {/* Tabs */}
-          <nav className="flex gap-1 mt-6 -mb-px">
+          <nav className="flex gap-6 -mb-px">
             {TABS.map((t) => {
               const active = pathname.toLowerCase() === t.to.toLowerCase();
               return (
                 <Link
                   key={t.to}
                   to={t.to}
-                  className={`px-4 py-3 text-sm border-b-2 transition-colors ${
-                    active
-                      ? 'border-brand text-white'
-                      : 'border-transparent text-white/50 hover:text-white/80'
+                  className={`py-2.5 text-sm border-b-2 transition-colors ${
+                    active ? 'border-brand text-brand font-medium' : 'border-transparent text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   {t.label}
@@ -48,15 +49,15 @@ export default function AppShell({ children, title, subtitle, actions }) {
             })}
           </nav>
         </div>
-      </div>
+      </header>
 
       {/* Page header + content */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-6 py-7">
         {(title || actions) && (
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div>
-              {title && <h2 className="font-display text-2xl font-semibold text-stone-900">{title}</h2>}
-              {subtitle && <p className="text-stone-500 mt-1">{subtitle}</p>}
+              {title && <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>}
+              {subtitle && <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>}
             </div>
             {actions && <div className="flex gap-2 flex-wrap">{actions}</div>}
           </div>
@@ -67,13 +68,13 @@ export default function AppShell({ children, title, subtitle, actions }) {
   );
 }
 
-// Premium stat tile (serif figure, hairline border, uppercase label).
+// Clean KPI card (white, navy figure, subtle label).
 export function StatTile({ label, value, sub, accent }) {
   return (
-    <div className="bg-white border border-stone-900/10 rounded-xl p-6">
-      <p className="text-[11px] uppercase tracking-[0.15em] text-stone-400 mb-3">{label}</p>
-      <p className={`font-display text-3xl font-semibold ${accent ? 'text-red-600' : 'text-stone-900'}`}>{value}</p>
-      {sub && <p className="text-xs text-stone-400 mt-1">{sub}</p>}
+    <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+      <p className="text-xs font-medium text-slate-500 mb-2">{label}</p>
+      <p className={`text-2xl font-semibold tracking-tight tabular-nums ${accent ? 'text-red-600' : 'text-slate-900'}`}>{value}</p>
+      {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
     </div>
   );
 }

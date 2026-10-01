@@ -76,8 +76,8 @@ button:focus-visible {
 
 @layer base {
   :root {
-    --background: 40 33% 95%;
-    --foreground: 24 10% 6%;
+    --background: 210 20% 98%;
+    --foreground: 215 25% 15%;
     --card: 0 0% 100%;
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
@@ -158,14 +158,14 @@ button:focus-visible {
   }
 }
 
-/* Premium display type */
+/* Headings use the same clean sans-serif (professional accounting look).
+   .font-display kept so existing markup works, now mapped to Inter. */
 .font-display {
-  font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
-  font-optical-sizing: auto;
-  letter-spacing: -0.015em;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.02em;
 }
-/* Brand accent (brass) */
-:root { --brand: 28 45% 45%; }
+/* Brand accent — professional navy/blue */
+:root { --brand: 221 55% 32%; }
 .text-brand { color: hsl(var(--brand)); }
 .bg-brand { background-color: hsl(var(--brand)); }
 .border-brand { border-color: hsl(var(--brand)); }
