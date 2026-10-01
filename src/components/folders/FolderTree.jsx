@@ -19,10 +19,10 @@ export default function FolderTree({
   const folderColors = {
     blue: 'bg-blue-100 text-blue-700',
     green: 'bg-green-100 text-green-700',
-    purple: 'bg-purple-100 text-purple-700',
+    purple: 'bg-stone-100 text-stone-800',
     amber: 'bg-amber-100 text-amber-700',
     rose: 'bg-rose-100 text-rose-700',
-    slate: 'bg-slate-100 text-slate-700'
+    slate: 'bg-stone-100 text-stone-700'
   };
 
   const getReceiptCount = (folderId) => {
@@ -66,7 +66,7 @@ export default function FolderTree({
       <div key={folder.id}>
         <motion.div
           className={`group w-full flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors ${
-            isSelected ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50'
+            isSelected ? 'bg-stone-50 text-stone-800' : 'hover:bg-stone-50'
           }`}
           style={{ paddingLeft: `${level * 20 + 12}px` }}
           whileHover={{ x: 2 }}
@@ -80,9 +80,9 @@ export default function FolderTree({
               className="p-0.5"
             >
               {isExpanded ? (
-                <ChevronDown className="w-4 h-4 text-slate-400" />
+                <ChevronDown className="w-4 h-4 text-stone-400" />
               ) : (
-                <ChevronRight className="w-4 h-4 text-slate-400" />
+                <ChevronRight className="w-4 h-4 text-stone-400" />
               )}
             </button>
           )}
@@ -117,7 +117,7 @@ export default function FolderTree({
             <>
               <button
                 onClick={() => onSelectFolder(folder.id)}
-                className="flex-1 text-left text-sm font-medium text-slate-700"
+                className="flex-1 text-left text-sm font-medium text-stone-700"
               >
                 {folder.name}
               </button>

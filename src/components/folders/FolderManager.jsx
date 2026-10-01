@@ -42,10 +42,10 @@ export default function FolderManager({ folders = [], currentFolderId }) {
   const colors = [
     { value: 'blue', label: 'Blue', class: 'bg-blue-500' },
     { value: 'green', label: 'Green', class: 'bg-green-500' },
-    { value: 'purple', label: 'Purple', class: 'bg-purple-500' },
+    { value: 'purple', label: 'Purple', class: 'bg-stone-800' },
     { value: 'amber', label: 'Amber', class: 'bg-amber-500' },
     { value: 'rose', label: 'Rose', class: 'bg-rose-500' },
-    { value: 'slate', label: 'Slate', class: 'bg-slate-500' }
+    { value: 'slate', label: 'Slate', class: 'bg-stone-500' }
   ];
 
   return (
@@ -62,7 +62,7 @@ export default function FolderManager({ folders = [], currentFolderId }) {
         </DialogHeader>
         <div className="space-y-4 pt-4">
           <div>
-            <label className="text-sm font-medium text-slate-700 block mb-2">
+            <label className="text-sm font-medium text-stone-700 block mb-2">
               Folder Name
             </label>
             <Input
@@ -74,7 +74,7 @@ export default function FolderManager({ folders = [], currentFolderId }) {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-slate-700 block mb-2">
+            <label className="text-sm font-medium text-stone-700 block mb-2">
               Description (optional)
             </label>
             <Textarea
@@ -86,7 +86,7 @@ export default function FolderManager({ folders = [], currentFolderId }) {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-slate-700 block mb-2">
+            <label className="text-sm font-medium text-stone-700 block mb-2">
               Color
             </label>
             <div className="grid grid-cols-6 gap-2">
@@ -95,7 +95,7 @@ export default function FolderManager({ folders = [], currentFolderId }) {
                   key={c.value}
                   onClick={() => setColor(c.value)}
                   className={`w-full h-10 rounded-lg ${c.class} ${
-                    color === c.value ? 'ring-2 ring-offset-2 ring-slate-400' : ''
+                    color === c.value ? 'ring-2 ring-offset-2 ring-stone-400' : ''
                   }`}
                   title={c.label}
                 />
@@ -104,7 +104,7 @@ export default function FolderManager({ folders = [], currentFolderId }) {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-slate-700 block mb-2">
+            <label className="text-sm font-medium text-stone-700 block mb-2">
               Parent Folder (optional)
             </label>
             <Select value={parentFolderId} onValueChange={setParentFolderId}>
@@ -133,7 +133,7 @@ export default function FolderManager({ folders = [], currentFolderId }) {
             <Button
               onClick={handleCreate}
               disabled={!name.trim() || createFolderMutation.isPending}
-              className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+              className="flex-1 bg-stone-900 hover:bg-stone-800"
             >
               Create Folder
             </Button>

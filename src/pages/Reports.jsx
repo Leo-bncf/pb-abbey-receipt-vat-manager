@@ -397,12 +397,12 @@ export default function Reports() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <FileSpreadsheet className="w-6 h-6 text-indigo-600" />
+            <div className="w-12 h-12 rounded-xl bg-stone-100 flex items-center justify-center">
+              <FileSpreadsheet className="w-6 h-6 text-stone-900" />
             </div>
             <div>
               <h1 className="font-display text-3xl font-semibold text-stone-900">VAT Reports</h1>
-              <p className="text-slate-500">Generate and export VAT summaries</p>
+              <p className="text-stone-500">Generate and export VAT summaries</p>
             </div>
           </div>
           <div className="flex gap-3 items-center flex-wrap">
@@ -419,8 +419,8 @@ export default function Reports() {
               </SelectContent>
             </Select>
             {/* Folder to export (folders created in the Dashboard) */}
-            <div className="flex gap-2 items-center border border-slate-200 bg-white rounded-lg px-3 py-1.5">
-              <Folder className="w-4 h-4 text-slate-400" />
+            <div className="flex gap-2 items-center border border-stone-200 bg-white rounded-lg px-3 py-1.5">
+              <Folder className="w-4 h-4 text-stone-400" />
               <Select value={exportFolder} onValueChange={setExportFolder}>
                 <SelectTrigger className="w-56 border-0 p-0 h-auto shadow-none focus:ring-0">
                   <SelectValue placeholder="Select folder..." />
@@ -442,7 +442,7 @@ export default function Reports() {
             <Button
               onClick={() => runExport('xlsx')}
               disabled={isExporting || !exportFolder}
-              className="bg-indigo-600 hover:bg-indigo-700 gap-2 disabled:opacity-50"
+              className="bg-stone-900 hover:bg-stone-800 gap-2 disabled:opacity-50"
             >
               <Download className="w-4 h-4" />
               {isExporting ? 'Exporting...' : 'Excel'}
@@ -464,14 +464,14 @@ export default function Reports() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-xl border border-slate-200 p-6"
+            className="bg-white rounded-xl border border-stone-200 p-6"
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                <Coins className="w-5 h-5 text-indigo-600" />
+              <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center">
+                <Coins className="w-5 h-5 text-stone-900" />
               </div>
             </div>
-            <p className="text-sm text-slate-500 mb-1">Total Spend</p>
+            <p className="text-sm text-stone-500 mb-1">Total Spend</p>
             <p className="font-display text-3xl font-semibold text-stone-900">{formatCurrency(summary.totalAmount)}</p>
           </motion.div>
 
@@ -479,14 +479,14 @@ export default function Reports() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white rounded-xl border border-slate-200 p-6"
+            className="bg-white rounded-xl border border-stone-200 p-6"
           >
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
                 <Percent className="w-5 h-5 text-emerald-600" />
               </div>
             </div>
-            <p className="text-sm text-slate-500 mb-1">Total VAT</p>
+            <p className="text-sm text-stone-500 mb-1">Total VAT</p>
             <p className="text-2xl font-bold text-emerald-600">{formatCurrency(summary.totalVAT)}</p>
           </motion.div>
 
@@ -494,14 +494,14 @@ export default function Reports() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-xl border border-slate-200 p-6"
+            className="bg-white rounded-xl border border-stone-200 p-6"
           >
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
                 <Building2 className="w-5 h-5 text-blue-600" />
               </div>
             </div>
-            <p className="text-sm text-slate-500 mb-1">Vendors</p>
+            <p className="text-sm text-stone-500 mb-1">Vendors</p>
             <p className="font-display text-3xl font-semibold text-stone-900">{summary.uniqueVendors}</p>
           </motion.div>
 
@@ -509,14 +509,14 @@ export default function Reports() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white rounded-xl border border-slate-200 p-6"
+            className="bg-white rounded-xl border border-stone-200 p-6"
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                <MapPin className="w-5 h-5 text-purple-600" />
+              <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center">
+                <MapPin className="w-5 h-5 text-stone-900" />
               </div>
             </div>
-            <p className="text-sm text-slate-500 mb-1">Countries</p>
+            <p className="text-sm text-stone-500 mb-1">Countries</p>
             <p className="font-display text-3xl font-semibold text-stone-900">{summary.uniqueCountries}</p>
           </motion.div>
         </div>
@@ -532,7 +532,7 @@ export default function Reports() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-indigo-600" />
+                  <TrendingUp className="w-5 h-5 text-stone-900" />
                   Monthly VAT Trend
                 </CardTitle>
               </CardHeader>
@@ -580,7 +580,7 @@ export default function Reports() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5 text-purple-600" />
+                  <MapPin className="w-5 h-5 text-stone-900" />
                   VAT by Country
                 </CardTitle>
               </CardHeader>

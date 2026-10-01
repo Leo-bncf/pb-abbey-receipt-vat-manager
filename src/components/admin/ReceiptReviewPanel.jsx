@@ -91,24 +91,24 @@ export default function ReceiptReviewPanel({
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
-      className="bg-white rounded-2xl border border-slate-200 overflow-hidden h-full flex flex-col"
+      className="bg-white rounded-2xl border border-stone-200 overflow-hidden h-full flex flex-col"
     >
       {/* Header */}
-      <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+      <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-            <FileText className="w-5 h-5 text-indigo-600" />
+          <div className="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center">
+            <FileText className="w-5 h-5 text-stone-900" />
           </div>
           <div>
-            <h2 className="font-semibold text-slate-800">Review Receipt</h2>
-            <p className="text-xs text-slate-500">{receipt.file_name}</p>
+            <h2 className="font-semibold text-stone-900">Review Receipt</h2>
+            <p className="text-xs text-stone-500">{receipt.file_name}</p>
           </div>
         </div>
         <button
           onClick={onClose}
-          className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+          className="p-2 hover:bg-stone-100 rounded-lg transition-colors"
         >
-          <X className="w-5 h-5 text-slate-500" />
+          <X className="w-5 h-5 text-stone-500" />
         </button>
       </div>
 
@@ -131,7 +131,7 @@ export default function ReceiptReviewPanel({
         )}
 
         {/* Receipt Preview */}
-        <div className="aspect-video rounded-xl bg-slate-50 border border-slate-200 overflow-hidden">
+        <div className="aspect-video rounded-xl bg-stone-50 border border-stone-200 overflow-hidden">
           {receipt.file_url ? (
             receipt.file_type === 'pdf' ? (
               <iframe 
@@ -148,7 +148,7 @@ export default function ReceiptReviewPanel({
               />
             )
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-400">
+            <div className="w-full h-full flex items-center justify-center text-stone-400">
               <FileText className="w-12 h-12" />
             </div>
           )}
@@ -157,7 +157,7 @@ export default function ReceiptReviewPanel({
         {/* Open Full Size Button */}
         <button
           onClick={() => window.open(displayUrl, '_blank')}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg transition-colors"
         >
           <ExternalLink className="w-4 h-4" />
           {pageNumber ? `Open Page ${pageNumber}` : 'Open Full Size'}
@@ -180,7 +180,7 @@ export default function ReceiptReviewPanel({
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
-              <Label className="text-slate-700">Vendor Name</Label>
+              <Label className="text-stone-700">Vendor Name</Label>
               <Input
                 value={formData.vendor_name}
                 onChange={(e) => handleChange('vendor_name', e.target.value)}
@@ -195,7 +195,7 @@ export default function ReceiptReviewPanel({
             </div>
 
             <div>
-              <Label className="text-slate-700">Receipt Date</Label>
+              <Label className="text-stone-700">Receipt Date</Label>
               <Input
                 type="date"
                 value={formData.receipt_date}
@@ -205,7 +205,7 @@ export default function ReceiptReviewPanel({
             </div>
 
             <div>
-              <Label className="text-slate-700">Country</Label>
+              <Label className="text-stone-700">Country</Label>
               <Input
                 value={formData.country}
                 onChange={(e) => handleChange('country', e.target.value)}
@@ -215,7 +215,7 @@ export default function ReceiptReviewPanel({
             </div>
 
             <div>
-              <Label className="text-slate-700">Currency</Label>
+              <Label className="text-stone-700">Currency</Label>
               <Select 
                 value={formData.currency} 
                 onValueChange={(v) => handleChange('currency', v)}
@@ -232,7 +232,7 @@ export default function ReceiptReviewPanel({
             </div>
 
             <div>
-              <Label className="text-slate-700">Total Amount</Label>
+              <Label className="text-stone-700">Total Amount</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -250,10 +250,10 @@ export default function ReceiptReviewPanel({
           </div>
 
           {/* Tax Free Toggle */}
-          <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+          <div className="flex items-center justify-between p-4 bg-stone-50 rounded-xl">
             <div>
-              <p className="font-medium text-slate-800">Tax Free Receipt</p>
-              <p className="text-xs text-slate-500">No VAT applies to this receipt</p>
+              <p className="font-medium text-stone-900">Tax Free Receipt</p>
+              <p className="text-xs text-stone-500">No VAT applies to this receipt</p>
             </div>
             <Switch
               checked={formData.is_tax_free}
@@ -264,7 +264,7 @@ export default function ReceiptReviewPanel({
           {!formData.is_tax_free && (
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-slate-700">VAT Amount</Label>
+                <Label className="text-stone-700">VAT Amount</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -281,7 +281,7 @@ export default function ReceiptReviewPanel({
               </div>
 
               <div>
-                <Label className="text-slate-700">VAT Rate (%)</Label>
+                <Label className="text-stone-700">VAT Rate (%)</Label>
                 <Input
                   type="number"
                   step="0.1"
@@ -292,10 +292,10 @@ export default function ReceiptReviewPanel({
                 />
               </div>
 
-              <div className="col-span-2 flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+              <div className="col-span-2 flex items-center justify-between p-4 bg-stone-50 rounded-xl">
                 <div>
-                  <p className="font-medium text-slate-800">VAT Explicitly Shown</p>
-                  <p className="text-xs text-slate-500">VAT was displayed on the receipt</p>
+                  <p className="font-medium text-stone-900">VAT Explicitly Shown</p>
+                  <p className="text-xs text-stone-500">VAT was displayed on the receipt</p>
                 </div>
                 <Switch
                   checked={formData.vat_explicit}
@@ -309,9 +309,9 @@ export default function ReceiptReviewPanel({
         {/* OCR Text Reference */}
         {receipt.ocr_text && (
           <div>
-            <Label className="text-slate-700 mb-2 block">OCR Text Reference</Label>
-            <div className="p-4 bg-slate-50 rounded-xl max-h-40 overflow-y-auto">
-              <pre className="text-xs text-slate-600 whitespace-pre-wrap font-mono">
+            <Label className="text-stone-700 mb-2 block">OCR Text Reference</Label>
+            <div className="p-4 bg-stone-50 rounded-xl max-h-40 overflow-y-auto">
+              <pre className="text-xs text-stone-600 whitespace-pre-wrap font-mono">
                 {receipt.ocr_text}
               </pre>
             </div>
@@ -320,8 +320,8 @@ export default function ReceiptReviewPanel({
       </div>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between">
-        <div className="text-sm text-slate-500">
+      <div className="px-6 py-4 border-t border-stone-200 flex items-center justify-between">
+        <div className="text-sm text-stone-500">
           {Object.keys(corrections).length > 0 && (
             <span className="text-amber-600">
               {Object.keys(corrections).length} field(s) modified
@@ -335,7 +335,7 @@ export default function ReceiptReviewPanel({
           <Button 
             onClick={handleSave}
             disabled={isSaving}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            className="bg-stone-900 hover:bg-stone-800"
           >
             {isSaving ? (
               <>

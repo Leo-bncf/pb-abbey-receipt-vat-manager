@@ -61,19 +61,19 @@ export default function DuplicatesTab() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+        <Loader2 className="w-8 h-8 text-stone-900 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between gap-4">
+    <div className="bg-white rounded-xl border border-stone-200 overflow-hidden">
+      <div className="px-6 py-4 border-b border-stone-200 flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Copy className="w-5 h-5 text-amber-600" />
           <div>
-            <h3 className="font-semibold text-slate-800">Duplicate Receipts</h3>
-            <p className="text-sm text-slate-500">
+            <h3 className="font-semibold text-stone-900">Duplicate Receipts</h3>
+            <p className="text-sm text-stone-500">
               Same vendor, date, amount &amp; VAT — keeps the earliest, removes the rest.
             </p>
           </div>
@@ -95,19 +95,19 @@ export default function DuplicatesTab() {
           <div className="w-16 h-16 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-800 mb-1">No duplicates found</h3>
-          <p className="text-slate-500">Every receipt is unique by content.</p>
+          <h3 className="text-lg font-semibold text-stone-900 mb-1">No duplicates found</h3>
+          <p className="text-stone-500">Every receipt is unique by content.</p>
         </div>
       ) : (
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-stone-100">
           {groups.map((g, i) => {
             const r = g.keep;
             return (
               <div key={i} className="p-4">
                 <div className="flex items-center justify-between gap-4 mb-2">
                   <div className="min-w-0">
-                    <span className="font-medium text-slate-800">{r.vendor_name || 'Unknown'}</span>
-                    <span className="text-slate-500 text-sm">
+                    <span className="font-medium text-stone-900">{r.vendor_name || 'Unknown'}</span>
+                    <span className="text-stone-500 text-sm">
                       {' · '}{r.receipt_date ? format(new Date(r.receipt_date), 'dd/MM/yyyy') : 'no date'}
                       {' · '}£{(r.total_amount || 0).toFixed(2)}
                       {' · VAT £'}{(r.vat_amount || 0).toFixed(2)}
@@ -129,13 +129,13 @@ export default function DuplicatesTab() {
                     </Button>
                   </div>
                 </div>
-                <ul className="text-xs text-slate-500 space-y-0.5 pl-1">
+                <ul className="text-xs text-stone-500 space-y-0.5 pl-1">
                   <li className="text-green-700">
-                    ✓ Keep: {g.keep.file_name} <span className="text-slate-400">({format(new Date(g.keep.created_date), 'dd/MM/yyyy HH:mm')})</span>
+                    ✓ Keep: {g.keep.file_name} <span className="text-stone-400">({format(new Date(g.keep.created_date), 'dd/MM/yyyy HH:mm')})</span>
                   </li>
                   {g.remove.map((x) => (
                     <li key={x.id} className="text-red-600">
-                      ✗ Remove: {x.file_name} <span className="text-slate-400">({format(new Date(x.created_date), 'dd/MM/yyyy HH:mm')})</span>
+                      ✗ Remove: {x.file_name} <span className="text-stone-400">({format(new Date(x.created_date), 'dd/MM/yyyy HH:mm')})</span>
                     </li>
                   ))}
                 </ul>

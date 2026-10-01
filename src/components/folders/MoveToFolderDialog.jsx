@@ -15,10 +15,10 @@ export default function MoveToFolderDialog({
   const folderColors = {
     blue: 'bg-blue-100 text-blue-700',
     green: 'bg-green-100 text-green-700',
-    purple: 'bg-purple-100 text-purple-700',
+    purple: 'bg-stone-100 text-stone-800',
     amber: 'bg-amber-100 text-amber-700',
     rose: 'bg-rose-100 text-rose-700',
-    slate: 'bg-slate-100 text-slate-700'
+    slate: 'bg-stone-100 text-stone-700'
   };
 
   const handleMove = () => {
@@ -36,8 +36,8 @@ export default function MoveToFolderDialog({
           onClick={() => setSelectedFolderId(folder.id)}
           className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
             selectedFolderId === folder.id 
-              ? 'bg-indigo-100 border-2 border-indigo-500' 
-              : 'hover:bg-slate-50 border-2 border-transparent'
+              ? 'bg-stone-100 border-2 border-stone-800' 
+              : 'hover:bg-stone-50 border-2 border-transparent'
           }`}
           style={{ paddingLeft: `${level * 20 + 16}px` }}
         >
@@ -48,7 +48,7 @@ export default function MoveToFolderDialog({
               <Folder className="w-5 h-5" />
             )}
           </div>
-          <span className="flex-1 text-left font-medium text-slate-700">
+          <span className="flex-1 text-left font-medium text-stone-700">
             {folder.name}
           </span>
         </button>
@@ -76,14 +76,14 @@ export default function MoveToFolderDialog({
             onClick={() => setSelectedFolderId(null)}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
               selectedFolderId === null 
-                ? 'bg-indigo-100 border-2 border-indigo-500' 
-                : 'hover:bg-slate-50 border-2 border-transparent'
+                ? 'bg-stone-100 border-2 border-stone-800' 
+                : 'hover:bg-stone-50 border-2 border-transparent'
             }`}
           >
-            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-              <Folder className="w-5 h-5 text-slate-600" />
+            <div className="w-10 h-10 rounded-lg bg-stone-100 flex items-center justify-center">
+              <Folder className="w-5 h-5 text-stone-600" />
             </div>
-            <span className="flex-1 text-left font-medium text-slate-700">
+            <span className="flex-1 text-left font-medium text-stone-700">
               All Receipts (Root)
             </span>
           </button>
@@ -97,7 +97,7 @@ export default function MoveToFolderDialog({
           </Button>
           <Button 
             onClick={handleMove} 
-            className="flex-1 bg-indigo-600 hover:bg-indigo-700"
+            className="flex-1 bg-stone-900 hover:bg-stone-800"
           >
             Move {receiptCount} receipt{receiptCount !== 1 ? 's' : ''}
           </Button>
