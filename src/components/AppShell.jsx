@@ -2,28 +2,40 @@
  * nav: N3 side-rail · full-bleed content · ink + hairlines + mono figures · motion: cut */
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Grid2x2, Upload as UploadIcon, FileBarChart, ShieldCheck, LayoutGrid, Menu, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { base44 } from '@/api/base44Client';
+import { workspace, wsPath } from '@/lib/workspace';
+import { Grid2x2, Upload as UploadIcon, FileBarChart, Percent, ClipboardCheck, LayoutGrid, Menu, X } from 'lucide-react';
 
 const NAV = [
   { label: 'Receipts', to: '/Dashboard', icon: Grid2x2 },
+  { label: 'To check', to: '/Review', icon: ClipboardCheck, badge: 'review' },
   { label: 'Upload', to: '/Upload', icon: UploadIcon },
   { label: 'Reports', to: '/Reports', icon: FileBarChart },
-  { label: 'Admin', to: '/Admin', icon: ShieldCheck },
+  { label: 'VAT return', to: '/VATReturn', icon: Percent, only: 'pbabbey' }, // HMRC return: PB Abbey only
 ];
 
 function Rail({ pathname }) {
+  const ws = workspace();
+  // Live count for the review queue (shares the cache with the Review page).
+  const { data: toCheck = [] } = useQuery({
+    queryKey: ['receipts', 'review'],
+    queryFn: () => base44.entities.Receipt.filter({ needs_review: true, is_reviewed: false }, 'file_name', 5000),
+    staleTime: 30000,
+  });
   return (
     <nav className="flex flex-col h-full">
       {/* Wordmark */}
       <div className="px-5 h-14 flex items-center border-b rule">
         <div>
-          <div className="font-semibold tracking-tight text-neutral-900 leading-none">PB Abbey</div>
-          <div className="text-[11px] text-neutral-400 mt-0.5">Receipts &amp; VAT</div>
+          <div className="font-semibold tracking-tight text-neutral-900 leading-none">{ws.name}</div>
+          <div className="text-[11px] text-neutral-400 mt-0.5">{ws.tagline}</div>
         </div>
       </div>
       {/* Nav items */}
       <div className="flex-1 py-3">
-        {NAV.map((n) => {
+        {NAV.filter((n) => !n.only || n.only === ws.key).map((n0) => {
+          const n = { ...n0, to: wsPath(n0.to) };
           const active = pathname.toLowerCase() === n.to.toLowerCase();
           return (
             <Link
@@ -37,6 +49,9 @@ function Rail({ pathname }) {
             >
               <n.icon className="w-4 h-4" strokeWidth={1.75} />
               {n.label}
+              {n.badge === 'review' && toCheck.length > 0 && (
+                <span className="ml-auto text-[11px] font-fig px-1.5 rounded bg-amber-100 text-amber-800">{toCheck.length}</span>
+              )}
             </Link>
           );
         })}
@@ -72,7 +87,7 @@ export default function AppShell({ children, title, subtitle, actions }) {
         {/* Mobile top bar */}
         <div className="md:hidden h-14 border-b rule flex items-center justify-between px-4">
           <button onClick={() => setOpen(true)} className="text-neutral-700"><Menu className="w-5 h-5" /></button>
-          <span className="font-semibold text-sm">PB Abbey</span>
+          <span className="font-semibold text-sm">{workspace().name}</span>
           <Link to="/" className="text-neutral-400"><LayoutGrid className="w-5 h-5" /></Link>
         </div>
 

@@ -50,6 +50,11 @@ module.exports = {
   				'4': 'hsl(var(--chart-4))',
   				'5': 'hsl(var(--chart-5))'
   			},
+  			// Outlook palette for Mail / Calendar / People (Fluent "communication blue").
+  			ol: {
+  				DEFAULT: '#0f6cbd', hover: '#115ea3', press: '#0c3b5e', soft: '#ebf3fc', sel: '#cfe4fa',
+  				bar: '#0f6cbd', bg: '#f0f0f0', line: '#e0e0e0', text: '#242424', sub: '#616161', mute: '#707070', hover2: '#f5f5f5'
+  			},
   			sidebar: {
   				DEFAULT: 'hsl(var(--sidebar-background))',
   				foreground: 'hsl(var(--sidebar-foreground))',

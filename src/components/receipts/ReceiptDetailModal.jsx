@@ -7,6 +7,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import ReceiptCrop from './ReceiptCrop';
 
 export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
   if (!isOpen || !receipt) return null;
@@ -19,7 +20,8 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
   
   // Extract page number if mentioned (e.g., "page 2", "page 5")
   const pageMatch = receipt.extraction_notes?.match(/page (\d+)/i) || location?.match(/page (\d+)/i);
-  const pageNumber = pageMatch ? parseInt(pageMatch[1]) : null;
+  const pageNumber = receipt.page_number || (pageMatch ? parseInt(pageMatch[1]) : null);
+  const hasBox = Array.isArray(receipt.box_2d) && receipt.box_2d.length === 4;
   
   // For PDFs, append page number to URL
   const displayUrl = receipt.file_type === 'pdf' && pageNumber 
@@ -41,7 +43,7 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
     { label: 'Total Amount', value: formatCurrency(receipt.total_amount, receipt.currency), icon: Coins, highlight: true },
     { label: 'VAT Amount', value: formatCurrency(receipt.vat_amount, receipt.currency), icon: Percent, highlight: true },
     { label: 'VAT Rate', value: receipt.vat_rate ? `${receipt.vat_rate}%` : '-', icon: Percent },
-    { label: 'VAT Explicit', value: receipt.vat_explicit ? 'Yes' : 'Calculated', icon: CheckCircle },
+    { label: 'VAT', value: receipt.vat_explicit ? 'Printed on receipt' : (receipt.vat_inferred ? 'Rate inferred (not printed)' : 'Calculated from rate'), icon: CheckCircle },
     { label: 'Tax Free', value: receipt.is_tax_free ? 'Yes' : 'No', icon: AlertCircle },
   ];
 
@@ -84,7 +86,7 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
           <div className="flex flex-col lg:flex-row max-h-[calc(90vh-80px)] overflow-hidden">
             {/* Left: Image Preview */}
             <div className="lg:w-1/2 p-6 bg-neutral-900 border-b lg:border-b-0 lg:border-r border-neutral-700">
-              {isMultiReceipt && location && (
+              {isMultiReceipt && location && !hasBox && (
                 <div className="mb-4 p-3 bg-amber-500/20 border border-amber-500/30 rounded-lg flex items-start gap-2">
                   <Info className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                   <div>
@@ -98,23 +100,10 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
                   </div>
                 </div>
               )}
-              <div className="aspect-[3/4] rounded bg-neutral-900 border border-neutral-700 overflow-auto relative">
-                {displayUrl ? (
-                  receipt.file_type === 'pdf' ? (
-                    <iframe 
-                      src={displayUrl} 
-                      className="w-full h-full"
-                      title="Receipt PDF"
-                    />
-                  ) : (
-                    <img 
-                      src={displayUrl} 
-                      alt="Receipt" 
-                      className="w-full h-full object-contain cursor-pointer hover:opacity-90 transition-all"
-                      onClick={() => window.open(displayUrl, '_blank')}
-                      style={{ imageRendering: 'crisp-edges' }}
-                    />
-                  )
+              <div className="aspect-[3/4] rounded bg-neutral-900 border border-neutral-700 overflow-hidden relative">
+                {receipt.file_url ? (
+                  <ReceiptCrop fileUrl={receipt.file_url} fileType={receipt.file_type} pageNumber={pageNumber}
+                    box={hasBox ? receipt.box_2d : null} className="w-full h-full" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-neutral-500">
                     <FileText className="w-16 h-16" />
@@ -160,6 +149,20 @@ export default function ReceiptDetailModal({ receipt, isOpen, onClose }) {
                     </Badge>
                   )}
                 </div>
+
+                {receipt.verification && receipt.verification !== 'OK' && (
+                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-[13px] text-amber-900">
+                    <p className="font-semibold">Check this one against the receipt</p>
+                    <p className="mt-0.5">
+                      Second reader: {receipt.verification}
+                      {receipt.verifier_amount != null && ` — it read ${formatCurrency(receipt.verifier_amount, receipt.currency)}`}
+                      {receipt.verifier_date && ` on ${format(new Date(receipt.verifier_date), 'dd/MM/yyyy')}`}.
+                    </p>
+                  </div>
+                )}
+                {receipt.verification === 'OK' && (
+                  <p className="text-[12px] text-emerald-700 flex items-center gap-1.5"><CheckCircle className="w-3.5 h-3.5" /> Amount and date confirmed by two independent readers</p>
+                )}
 
                 {/* Extracted Fields */}
                 <div className="space-y-3">

@@ -177,3 +177,17 @@ button:focus-visible {
 .border-brand { border-color: hsl(var(--brand)); }
 /* Hairline rule token */
 .rule { border-color: hsl(var(--border)); }
+
+/* Outlook look (Mail / Calendar / People): Segoe UI where the system has it, Fluent
+   greys, thin scrollbars. Colours come from the `ol` palette in tailwind.config.js. */
+.ol-app {
+  font-family: 'Segoe UI', 'Segoe UI Web (West European)', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', sans-serif;
+  color: #242424;
+  background: #f0f0f0;
+  -webkit-font-smoothing: antialiased;
+}
+.ol-app .font-fig { font-family: inherit; letter-spacing: 0; }
+.ol-app ::-webkit-scrollbar { width: 10px; height: 10px; }
+.ol-app ::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
+.ol-app ::-webkit-scrollbar-thumb:hover { background: #a3a3a3; border: 3px solid transparent; background-clip: content-box; }
+.ol-app ::-webkit-scrollbar-track { background: transparent; }

@@ -1,3 +1,4 @@
+import { wsPath } from '@/lib/workspace';
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
@@ -10,12 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { base44 } from '@/api/base44Client';
 import AppShell, { StatStrip } from '@/components/AppShell';
+import YearEndPack from '@/components/reports/YearEndPack';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend
 } from 'recharts';
 import { format, startOfMonth, subMonths } from 'date-fns';
-import * as XLSX from 'xlsx';
+import { newWorkbook, tableSheet, summarySheet, download } from '@/lib/excel';
 
 // Professional chart palette: navy + slate tones
 const COLORS = ['#171717', '#525252', '#737373', '#a3a3a3', '#d4d4d4', '#404040', '#8a8a8a'];
@@ -24,6 +26,8 @@ export default function Reports() {
   // Single scope: a folder ('all', 'root', or a folder id) — chosen like the
   // document explorer. No date-range controls.
   const [exportFolder, setExportFolder] = useState('all');
+  // Leave receipts still waiting in the "To check" queue out of the export by default.
+  const [skipUnchecked, setSkipUnchecked] = useState(true);
 
   const { data: receipts = [] } = useQuery({
     queryKey: ['receipts'],
@@ -142,11 +146,14 @@ export default function Reports() {
   const folderName = (id) => folders.find(f => f.id === id)?.name || 'Folder';
 
   // Receipts for the selected folder ('all' = everything, 'root' = no folder).
-  const getExportSet = () => {
+  const isUnchecked = (r) => r.needs_review && !r.is_reviewed;
+  const folderSet = () => {
     if (exportFolder === 'all') return receipts;
     if (exportFolder === 'root') return receipts.filter(r => !r.folder_id);
     return receipts.filter(r => r.folder_id === exportFolder);
   };
+  const getExportSet = () => folderSet().filter(r => !(skipUnchecked && isUnchecked(r)));
+  const uncheckedInScope = folderSet().filter(isUnchecked).length;
 
   const scopeLabel = () => {
     if (exportFolder === 'all') return 'All folders';
@@ -241,13 +248,6 @@ export default function Reports() {
       });
 
       const n2 = (v) => Math.round((v || 0) * 100) / 100;
-      const MONEY = '#,##0.00';
-      const setFormat = (ws, col, fromRow, count, z) => {
-        for (let i = 0; i < count; i++) {
-          const cell = ws[`${col}${fromRow + i}`];
-          if (cell) cell.z = z;
-        }
-      };
 
       // Summary totals (GBP) — computed from the deduplicated rows.
       const totalAmountGbp = rows.reduce((s, x) => s + x.totalGbp, 0);
@@ -326,48 +326,31 @@ export default function Reports() {
         return;
       }
 
-      // Build the sheet as rows, tracking positions so number formats line up.
-      const aoa = [
-        ['Date', 'Name', 'Amount (GBP)', 'VAT %', 'VAT (GBP)'],
-        ...receiptRows,
-        [],
-        ['TOTALS'],
-        ['Total Receipts', n],
-        ['Total Amount (GBP)', n2(totalAmountGbp)],
-        ['Total VAT (GBP)', n2(totalVatGbp)],
-        ['Unique Vendors', uniqueVendors],
-        [],
-      ];
-      const totalsAmountRow = n + 5; // "Total Amount" row (1-based), with Total VAT below
-
-      // VAT-by-rate band summary (classified by each receipt's effective rate).
-      const bandHeaderRow = aoa.length + 1;
-      aoa.push(['VAT BY RATE', 'Receipts', 'Net (GBP)', 'VAT (GBP)']);
-      BANDS.forEach(b => {
-        const t = bandTotals[b];
-        aoa.push([b, t.count, n2(t.net), n2(t.vat)]);
+      // Styled workbook: a summary sheet (totals + VAT by rate) and the receipts table.
+      const wb = await newWorkbook();
+      const sub = [`${scopeLabel()} · ${n} receipt${n === 1 ? '' : 's'}`, `Prepared ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} from the PB Abbey app`];
+      summarySheet(wb, {
+        title: `PB ABBEY LTD — VAT report`,
+        subtitle: sub,
+        blocks: [
+          { heading: 'Totals (GBP)', rows: [
+            ['Receipts', n, 'int'],
+            ['Unique suppliers', uniqueVendors, 'int'],
+            ['Total amount', n2(totalAmountGbp)],
+            ['Total VAT', n2(totalVatGbp), 'money', '', true],
+          ] },
+          { heading: 'VAT by rate', rows: BANDS.map((bnd) => [`${bnd} — ${bandTotals[bnd].count} receipt${bandTotals[bnd].count === 1 ? '' : 's'}`, n2(bandTotals[bnd].vat), 'money', `net £${n2(bandTotals[bnd].net).toLocaleString('en-GB', { minimumFractionDigits: 2 })}`]) },
+        ],
+        checks: [{ text: BAND_NOTE }, { text: FX_NOTE }],
       });
-      aoa.push([]);
-      aoa.push([BAND_NOTE]);
-      aoa.push([FX_NOTE]);
-
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      ws['!cols'] = [{ wch: 16 }, { wch: 28 }, { wch: 14 }, { wch: 10 }, { wch: 14 }];
-      // Money format on the receipt rows (Amount + VAT columns)
-      setFormat(ws, 'C', 2, n, MONEY);
-      setFormat(ws, 'E', 2, n, MONEY);
-      // Money format on the totals table (Total Amount + Total VAT values)
-      setFormat(ws, 'B', totalsAmountRow, 2, MONEY);
-      // Money format on the band table (Net + VAT columns, 4 band rows)
-      setFormat(ws, 'C', bandHeaderRow + 1, BANDS.length, MONEY);
-      setFormat(ws, 'D', bandHeaderRow + 1, BANDS.length, MONEY);
-      ws['!autofilter'] = { ref: `A1:E${n + 1}` };
-      // Excel sheet names are max 31 chars and can't contain : \ / ? * [ ]
-      const sheetName = monthLabel.replace(/[:\\/?*[\]]/g, ' ').slice(0, 31);
-      XLSX.utils.book_append_sheet(wb, ws, sheetName);
-
-      XLSX.writeFile(wb, `vat_report_${scopeFileTag()}.xlsx`);
+      tableSheet(wb, {
+        sheet: 'Receipts', title: 'Receipts', subtitle: sub,
+        columns: [{ header: 'Date', type: 'date', width: 11 }, { header: 'Supplier', width: 32 }, { header: 'Amount £', type: 'money', width: 13, total: 'sum' }, { header: 'VAT %', width: 8 }, { header: 'VAT £', type: 'money', width: 12, total: 'sum' }, { header: 'Net £', type: 'money', width: 13, total: 'sum' }, { header: 'Original', type: 'link', width: 42 }],
+        rows: rows.map((x) => [(x.r.receipt_date || x.r.created_date || '').slice(0, 10), x.r.vendor_name || '', n2(x.totalGbp), vatRateLabel(x.r.vat_rate), n2(x.vatGbp), n2(x.totalGbp - x.vatGbp),
+          { text: (x.r.file_name || '').replace(/\s*\[\d+\/\d+\]\s*$/, '') || 'Open', url: x.r.file_url }]),
+        notes: [FX_NOTE],
+      });
+      await download(wb, `vat_report_${scopeFileTag()}.xlsx`);
     } catch (e) {
       console.error('Export failed:', e);
       alert('Export failed. Please try again.');
@@ -381,6 +364,7 @@ export default function Reports() {
   return (
     <AppShell title="Reports" subtitle="Generate and export VAT summaries">
       <div className="max-w-full">
+        <YearEndPack />
         {/* Document picker + export */}
         <div className="bg-white border border-neutral-200 rounded-lg p-5 mb-8">
           <div className="flex items-center justify-between gap-4 mb-4">
@@ -414,6 +398,14 @@ export default function Reports() {
                 );
               })}
           </div>
+          {uncheckedInScope > 0 && (
+            <label className="mt-4 flex items-center gap-2 text-[13px] text-neutral-700 cursor-pointer select-none">
+              <input type="checkbox" checked={skipUnchecked} onChange={(e) => setSkipUnchecked(e.target.checked)} className="accent-neutral-900" />
+              Leave out the <span className="font-semibold">{uncheckedInScope}</span> receipt{uncheckedInScope !== 1 ? 's' : ''} still to check
+              <a href={wsPath('/Review')} className="text-neutral-500 underline ml-1">check them now</a>
+            </label>
+          )}
+          {uncheckedInScope === 0 && <p className="mt-4 text-[12px] text-emerald-700">Every receipt in this selection has been checked.</p>}
         </div>
 
         {/* Summary — ledger strip */}

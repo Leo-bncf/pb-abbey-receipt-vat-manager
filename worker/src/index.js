@@ -9,11 +9,13 @@
 const OCR = "https://api.mistral.ai/v1/ocr";
 const CHAT = "https://api.mistral.ai/v1/chat/completions";
 
-// Only allow the base44 app to call this from a browser.
-const ALLOW_ORIGIN = "https://pb-abbey-receipts.base44.app";
+import { extractWithGemini, addUsage } from "./gemini.js";
+
+// Browser origins allowed to call this Worker (the self-hosted app).
+const ALLOWED_ORIGINS = ["https://pbabbey.com", "https://www.pbabbey.com", "https://pb-abbey-app.leo-bncf.workers.dev"];
 
 function corsHeaders(origin) {
-  const allow = origin === ALLOW_ORIGIN ? origin : ALLOW_ORIGIN;
+  const allow = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -42,7 +44,7 @@ async function withRetry(fn, attempts = 4) {
   throw last;
 }
 
-async function mistralJson(url, apiKey, payload) {
+async function mistralJson(url, apiKey, payload, usage) {
   const res = await fetch(url, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -51,7 +53,10 @@ async function mistralJson(url, apiKey, payload) {
   if (!res.ok) {
     throw new Error(`Mistral ${res.status}: ${(await res.text()).slice(0, 300)}`);
   }
-  return res.json();
+  const j = await res.json();
+  if (j?.usage_info?.pages_processed) addUsage(usage, payload.model, { pages: j.usage_info.pages_processed });
+  else if (j?.usage) addUsage(usage, payload.model, { input: j.usage.prompt_tokens || 0, output: j.usage.completion_tokens || 0 });
+  return j;
 }
 
 // Limited concurrency so we stay under the Worker subrequest budget and Mistral rate limits.
@@ -76,7 +81,12 @@ const SCHEMA_HINT =
   `Read the YEAR digits very carefully: these are recent receipts, so the year is the current year or ` +
   `the one before. A year that reads as 2006, 2016, 2023, 2025 etc. on an otherwise recent receipt is ` +
   `almost always a mis-read of a 202x year — re-read it before trusting it. Never invent a total or VAT; ` +
-  `if a number is unreadable leave it and note it in extraction_notes.`;
+  `if a number is unreadable leave it and note it in extraction_notes. ` +
+  `A "Sub Total"/"Subtotal" line is NOT a separate receipt: it belongs to the same receipt as its final ` +
+  `"Total" (after any discounts/promotions). Always use the final Total and NEVER emit a second receipt ` +
+  `for the sub total. ONLY extract receipts that are literally present in the OCR text: every vendor_name ` +
+  `you output MUST actually appear in the text below. Never add a well-known chain (Pret A Manger, Caffè ` +
+  `Nero, Costa, Starbucks, McDonald's, Greggs, etc.) unless that name is printed in this text.`;
 
 export default {
   async fetch(request, env) {
@@ -98,6 +108,27 @@ export default {
     const period = body.period || ""; // e.g. "August-September 2026" — expected date window
     if (!fileUrl) return json({ error: "file_url is required" }, 400, origin);
 
+    // Default engine: Gemini (page split + bounding boxes + second-reader check).
+    // Mistral stays available as a fallback: { engine: "mistral" }.
+    const engine = body.engine || (env.GEMINI_API_KEY ? "gemini" : "mistral");
+    const usage = {}; // { model: { calls, input, output, pages } } — every billed call, incl. a failed Gemini try before a fallback
+    if (engine === "gemini" && !body.debug) {
+      let geminiProblem = "";
+      try {
+        const out = await extractWithGemini({ fileUrl, period, apiKey: env.GEMINI_API_KEY, usage, region: body.region === 'FR' ? 'FR' : 'UK' });
+        // Gemini unusable (credits depleted, quota, outage) -> every page failed and
+        // nothing came back. Never return an empty result as if the document had no
+        // receipts: fall through to the Mistral engine instead.
+        const allFailed = out.receipts.length === 0 && out.errors.length > 0;
+        if (!allFailed) return json({ receipts: out.receipts, ocr_pages: out.pages, errors: out.errors, engine: out.engine, usage }, 200, origin);
+        geminiProblem = out.errors[0] || "no result";
+      } catch (e) {
+        geminiProblem = String(e?.message || e);
+      }
+      console.warn("gemini failed, falling back to mistral:", geminiProblem.slice(0, 200));
+      body.fallbackReason = geminiProblem.slice(0, 200);
+    }
+
     const periodRule = period
       ? `IMPORTANT DATE CONSTRAINT: every receipt in this document is from ${period}. ` +
         `Each receipt_date MUST fall within ${period}. If your reading gives a date outside that ` +
@@ -111,7 +142,7 @@ export default {
         mistralJson(OCR, apiKey, {
           model: "mistral-ocr-latest",
           document: { type: "document_url", document_url: fileUrl },
-        })
+        }, usage)
       );
       const pages = ocr.pages || [];
 
@@ -131,6 +162,7 @@ export default {
         const text = (p?.markdown || "").trim();
         if (!text) return [];
         const instructions =
+          (body.region === "FR" ? "These are FRENCH expense documents (invoices and receipts, euros, French TVA 20/10/5.5/2.1%). total_amount = Total TTC / Net à payer. Decimal comma: 1 234,56 = 1234.56. Dates are day/month/year.\n\n" : "") +
           (userPrompt ? userPrompt + "\n\n" : "") +
           periodRule +
           `The following is the OCR text of PAGE ${idx + 1} of a document. This page usually has ` +
@@ -150,33 +182,49 @@ export default {
               max_tokens: 8000,
               response_format: { type: "json_object" },
               messages: [{ role: "user", content }],
-            })
+            }, usage)
           );
           const parsed = JSON.parse(chat?.choices?.[0]?.message?.content || "{}");
           return Array.isArray(parsed.receipts) ? parsed.receipts : [];
         };
         const key = (r) => `${(r.vendor_name || "").toLowerCase().trim()}|${r.total_amount ?? ""}`;
+        // Drop any receipt whose vendor name does not actually appear in the
+        // page's OCR text — this kills gap-finder hallucinations (e.g. it would
+        // invent a "Pret A Manger" or "Caffè Nero" receipt not on the page).
+        const norm = (s) => (s || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        const pageText = norm(text);
+        const vendorInText = (r) => {
+          const words = norm(r.vendor_name).split(/[^a-z0-9]+/).filter((w) => w.length >= 4);
+          if (words.length === 0) return true; // nothing checkable → keep
+          return words.some((w) => pageText.includes(w));
+        };
         try {
           const merged = await runChat(instructions);
           const seen = new Set(merged.map(key));
-          // Gap-finder: keep re-reading the SAME page for receipts missed so far,
-          // until a pass finds nothing new (dense pages need a few rounds).
-          // Up to 3 extra passes (Workers Paid lifts the subrequest cap).
-          for (let pass = 0; pass < 3; pass++) {
+          // Gap-finder for dense pages: re-read the SAME page for receipts missed
+          // so far. Bounded to 2 passes and tightly worded so it recovers genuinely
+          // missed receipts WITHOUT inventing ones or splitting a sub total.
+          for (let pass = 0; pass < 2; pass++) {
             const found = merged.map((r) => `${r.vendor_name || "?"} / ${r.total_amount ?? "?"}`).join("; ");
             const gapInstr =
               periodRule +
               `Below is the OCR text of PAGE ${idx + 1}. These receipts were ALREADY extracted: ` +
-              `[${found}]. Re-read the text and return ONLY receipts present but NOT already in that ` +
-              `list (a different store, or same store with a different TOTAL). If none are missing, ` +
-              `return {"receipts":[]}. Set receipt_location to "page ${idx + 1}". ` +
+              `[${found}]. Return ONLY receipts that are clearly printed in the text but genuinely ` +
+              `MISSING from that list — i.e. a different store, or the same store but a clearly separate ` +
+              `transaction (different transaction/receipt number or time). Do NOT re-report one already ` +
+              `listed. Do NOT treat a Sub Total as a new receipt. Do NOT invent a receipt that is not ` +
+              `printed in the text. If none are missing, return {"receipts":[]}. ` +
+              `Set receipt_location to "page ${idx + 1}". ` +
               SCHEMA_HINT + `\n\nPAGE ${idx + 1} OCR TEXT:\n` + text;
             let extra = [];
             try { extra = await runChat(gapInstr); } catch (e) { pageErrors.push(`p${idx + 1} gap: ${String(e?.message || e).slice(0, 60)}`); break; }
-            const newOnes = extra.filter((r) => !seen.has(key(r)));
+            const newOnes = extra.filter((r) => !seen.has(key(r)) && vendorInText(r));
             if (newOnes.length === 0) break; // converged
             for (const r of newOnes) { seen.add(key(r)); merged.push(r); }
           }
+          // Main-pass receipts are trusted (they may correct a garbled OCR
+          // vendor, e.g. "ELECTRICFIX" -> "Screwfix"); only gap additions above
+          // are vendorInText-filtered to kill hallucinations.
           return merged;
         } catch (e) {
           pageErrors.push(`p${idx + 1} pass1: ${String(e?.message || e).slice(0, 80)}`);
@@ -192,7 +240,7 @@ export default {
         r.confidence_score = Math.round(Math.max(0, Math.min(100, c)));
         return r;
       });
-      return json({ receipts, ocr_pages: pages.length, errors: pageErrors }, 200, origin);
+      return json({ receipts, ocr_pages: pages.length, errors: pageErrors, engine: "mistral", usage, ...(body.fallbackReason ? { fallback_reason: body.fallbackReason } : {}) }, 200, origin);
     } catch (e) {
       return json({ error: String(e?.message || e) }, 502, origin);
     }

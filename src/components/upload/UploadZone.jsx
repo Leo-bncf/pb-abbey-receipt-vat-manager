@@ -1,7 +1,25 @@
 import React, { useState, useCallback } from 'react';
-import { Upload, FileText, Image, X, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Upload, FileText, Image, X, Loader2, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+// Phone photos are 3–5 MB; ~2000 px JPEG is plenty to read a till receipt and
+// uploads in a second on mobile data. Also normalises iPhone formats to JPEG.
+async function compressPhoto(file, index) {
+  const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ').replace(/:/g, '.');
+  const name = `Receipt photo ${stamp}${index ? `-${index + 1}` : ''}.jpg`;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 2000 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale); canvas.height = Math.round(bitmap.height * scale);
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.85));
+    return new File([blob], name, { type: 'image/jpeg' });
+  } catch {
+    // Browser can't decode it (e.g. HEIC on desktop Chrome): send as-is if it's a usable type.
+    return /image\/(jpe?g|png)/.test(file.type) ? new File([file], name.replace('.jpg', file.type === 'image/png' ? '.png' : '.jpg'), { type: file.type }) : null;
+  }
+}
 
 export default function UploadZone({ onFilesSelected, isProcessing }) {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -42,6 +60,14 @@ export default function UploadZone({ onFilesSelected, isProcessing }) {
     }
   };
 
+  const handlePhotos = async (e) => {
+    const picked = Array.from(e.target.files || []);
+    e.target.value = ''; // allow taking another photo straight away
+    const out = (await Promise.all(picked.map((f, i) => compressPhoto(f, picked.length > 1 ? i : 0)))).filter(Boolean);
+    if (out.length) setSelectedFiles(prev => [...prev, ...out]);
+    if (out.length < picked.length) alert('Some photos could not be read. Please take them again (JPEG/PNG).');
+  };
+
   const removeFile = (index) => {
     setSelectedFiles(prev => prev.filter((_, i) => i !== index));
   };
@@ -55,9 +81,9 @@ export default function UploadZone({ onFilesSelected, isProcessing }) {
 
   const getFileIcon = (file) => {
     if (file.type === 'application/pdf') {
-      return <FileText className="w-5 h-5 text-red-500" />;
+      return <FileText className="w-4 h-4 text-neutral-400 shrink-0" />;
     }
-    return <Image className="w-5 h-5 text-blue-500" />;
+    return <Image className="w-4 h-4 text-neutral-400 shrink-0" />;
   };
 
   const formatFileSize = (bytes) => {
@@ -67,127 +93,45 @@ export default function UploadZone({ onFilesSelected, isProcessing }) {
   };
 
   return (
-    <div className="space-y-6">
-      <motion.div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={`
-          relative border-2 border-dashed rounded p-12 text-center transition-all duration-300 cursor-pointer
-          ${isDragOver 
-            ? 'border-neutral-800 bg-neutral-50/50' 
-            : 'border-neutral-200 hover:border-neutral-300 bg-neutral-50/30'
-          }
-        `}
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.99 }}
-      >
-        <input
-          type="file"
-          multiple
-          accept=".pdf,.jpg,.jpeg,.png"
-          onChange={handleFileSelect}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          disabled={isProcessing}
-        />
-        
-        <motion.div
-          animate={{ y: isDragOver ? -5 : 0 }}
-          transition={{ duration: 0.2 }}
-          className="flex flex-col items-center"
-        >
-          <div className={`
-            w-16 h-16 rounded flex items-center justify-center mb-4 transition-colors duration-300
-            ${isDragOver ? 'bg-neutral-100' : 'bg-neutral-100'}
-          `}>
-            <Upload className={`w-8 h-8 ${isDragOver ? 'text-neutral-900' : 'text-neutral-400'}`} />
-          </div>
-          
-          <h3 className="text-lg font-semibold text-neutral-900 mb-2">
-            {isDragOver ? 'Drop files here' : 'Upload Receipts'}
-          </h3>
-          <p className="text-neutral-500 text-sm mb-4">
-            Drag and drop your receipts or click to browse
-          </p>
-          <div className="flex items-center gap-3 text-xs text-neutral-400">
-            <span className="flex items-center gap-1">
-              <FileText className="w-3 h-3" /> PDF
-            </span>
-            <span className="flex items-center gap-1">
-              <Image className="w-3 h-3" /> JPG
-            </span>
-            <span className="flex items-center gap-1">
-              <Image className="w-3 h-3" /> PNG
-            </span>
-          </div>
-        </motion.div>
-      </motion.div>
+    <div>
+      {/* Phone: one tap = camera; one photo = one receipt (the most accurate way to scan). */}
+      <label className={`flex items-center justify-center gap-2.5 w-full h-12 bg-neutral-900 text-white text-[14px] font-medium cursor-pointer hover:bg-neutral-800 transition-colors ${isProcessing ? 'opacity-50 pointer-events-none' : ''}`}>
+        <Camera className="w-4 h-4" /> Photograph a receipt
+        <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handlePhotos} disabled={isProcessing} />
+      </label>
+      <p className="mt-2 text-[12px] text-neutral-500">One receipt per photo, flat and in good light. Take as many as you like, then press <span className="font-medium text-neutral-800">Send for reading</span>.</p>
 
-      <AnimatePresence>
-        {selectedFiles.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="space-y-3"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-neutral-700">
-                {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
-              </span>
-              <Button
-                onClick={handleUpload}
-                disabled={isProcessing}
-                className="bg-neutral-900 hover:bg-neutral-800"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-4 h-4 mr-2" />
-                    Process Receipts
-                  </>
-                )}
-              </Button>
-            </div>
+      <div onDragOver={handleDragOver} onDragLeave={handleDragLeave} onDrop={handleDrop}
+        className={`relative mt-4 border border-dashed px-5 py-7 text-center transition-colors ${isDragOver ? 'border-neutral-900 bg-white' : 'border-neutral-300 bg-white/60 hover:bg-white'}`}>
+        <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png" onChange={handleFileSelect} disabled={isProcessing}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+        <Upload className="w-5 h-5 text-neutral-400 mx-auto mb-2" />
+        <p className="text-[13px] text-neutral-800 font-medium">{isDragOver ? 'Drop the files here' : 'Choose files or drop them here'}</p>
+        <p className="text-[12px] text-neutral-400 mt-0.5">PDF, JPG or PNG — a whole statement PDF is fine</p>
+      </div>
 
-            <div className="bg-white rounded border border-neutral-200 divide-y divide-neutral-100 overflow-hidden">
-              {selectedFiles.map((file, index) => (
-                <motion.div
-                  key={`${file.name}-${index}`}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="flex items-center justify-between p-4 hover:bg-neutral-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    {getFileIcon(file)}
-                    <div>
-                      <p className="text-sm font-medium text-neutral-900 truncate max-w-xs">
-                        {file.name}
-                      </p>
-                      <p className="text-xs text-neutral-400">
-                        {formatFileSize(file.size)}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => removeFile(index)}
-                    className="p-1 hover:bg-neutral-200 rounded-lg transition-colors"
-                    disabled={isProcessing}
-                  >
-                    <X className="w-4 h-4 text-neutral-400" />
-                  </button>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {selectedFiles.length > 0 && (
+        <div className="mt-4 bg-white border rule">
+          <ul className="divide-y divide-neutral-100">
+            {selectedFiles.map((file, index) => (
+              <li key={`${file.name}-${index}`} className="flex items-center gap-3 px-4 py-2.5">
+                {getFileIcon(file)}
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] text-neutral-900 truncate">{file.name}</p>
+                  <p className="text-[11px] text-neutral-400 font-fig">{formatFileSize(file.size)}</p>
+                </div>
+                <button onClick={() => removeFile(index)} disabled={isProcessing} title="Remove" className="p-1.5 text-neutral-400 hover:text-neutral-900"><X className="w-4 h-4" /></button>
+              </li>
+            ))}
+          </ul>
+          <div className="px-4 py-3 border-t rule flex items-center justify-between gap-3">
+            <span className="text-[12px] text-neutral-500">{selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} ready</span>
+            <Button onClick={handleUpload} disabled={isProcessing} className="bg-neutral-900 hover:bg-neutral-800 rounded-none">
+              {isProcessing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending…</> : <>Send for reading</>}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

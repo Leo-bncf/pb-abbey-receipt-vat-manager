@@ -1,0 +1,11 @@
+{
+  "name": "pbabbey-mail-imap",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PB Abbey mail sidecar — IMAP (hand-rolled) + SMTP send (nodemailer)",
+  "main": "server.js",
+  "dependencies": {
+    "httpntlm": "^1.8.13",
+    "nodemailer": "^6.9.16"
+  }
+}

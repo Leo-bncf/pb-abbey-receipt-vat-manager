@@ -1,9 +1,10 @@
+import { workspace, currentWorkspace } from '@/lib/workspace';
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Upload, Download, Search, Trash2, Eye, ChevronUp, ChevronDown,
-  Folder, FolderPlus, ChevronRight, FileText, ArrowLeft, Pencil,
+  Folder, FolderPlus, ChevronRight, ArrowLeft, Pencil,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +14,19 @@ import { createPageUrl } from '@/utils';
 import AppShell, { StatStrip } from '@/components/AppShell';
 import ReceiptDetailModal from '../components/receipts/ReceiptDetailModal';
 import { format } from 'date-fns';
+import { askText } from '@/components/AskText';
 
-const gbp = (n) => `£${(Number(n) || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const SYM = { GBP: '£', EUR: '€', USD: '$' };
+const fmt2 = (n) => (Number(n) || 0).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Amounts keep their own currency (EUR receipts are stored in EUR, not converted).
+const money = (n, cur = workspace().currency) => (SYM[cur] ? `${SYM[cur]}${fmt2(n)}` : `${fmt2(n)} ${cur}`);
+// Sum per currency, never adding € to £: "£1,093.03 + €220.42".
+const sumBy = (rows, field) => {
+  const m = {};
+  rows.forEach((r) => { const c = r.currency || workspace().currency; m[c] = (m[c] || 0) + (Number(r[field]) || 0); });
+  const parts = Object.entries(m).sort(([a], [b]) => (a === 'GBP' ? -1 : b === 'GBP' ? 1 : a.localeCompare(b))).map(([c, v]) => money(v, c));
+  return parts.length ? parts.join(' + ') : money(0); // empty: the book's own currency (€ for Carnas)
+};
 
 const statusChip = {
   reviewed: 'text-emerald-700 bg-emerald-50 border-emerald-200',
@@ -25,6 +37,7 @@ const statusChip = {
 };
 
 export default function Dashboard() {
+  const flat = currentWorkspace() === 'carnas'; // Carnas: no folders, every receipt in one list by date
   const [currentFolderId, setCurrentFolderId] = useState(null); // null = root (explorer)
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedReceipt, setSelectedReceipt] = useState(null);
@@ -59,20 +72,20 @@ export default function Dashboard() {
   // Folders with their receipt counts/totals (for the explorer tiles)
   const folderCards = useMemo(() => folders.map((f) => {
     const rs = receipts.filter((r) => r.folder_id === f.id);
-    return { ...f, count: rs.length, total: rs.reduce((s, r) => s + (r.total_amount || 0), 0) };
+    return { ...f, count: rs.length, total: sumBy(rs, 'total_amount') };
   }), [folders, receipts]);
 
   const rootReceipts = useMemo(() => receipts.filter((r) => !r.folder_id), [receipts]);
 
   // Receipts shown in the current view (a folder, or root loose receipts)
-  const inScope = useMemo(() => (isRoot ? rootReceipts : receipts.filter((r) => r.folder_id === currentFolderId)), [isRoot, rootReceipts, receipts, currentFolderId]);
+  const inScope = useMemo(() => (flat ? receipts : isRoot ? rootReceipts : receipts.filter((r) => r.folder_id === currentFolderId)), [flat, isRoot, rootReceipts, receipts, currentFolderId]);
 
   const stats = useMemo(() => {
     const base = isRoot ? receipts : inScope; // root stats = whole account
     return {
       count: base.length,
-      total: base.reduce((s, r) => s + (r.total_amount || 0), 0),
-      vat: base.reduce((s, r) => s + (r.vat_amount || 0), 0),
+      total: sumBy(base, 'total_amount'),
+      vat: sumBy(base, 'vat_amount'),
       vendors: new Set(base.map((r) => r.vendor_name)).size,
     };
   }, [isRoot, receipts, inScope]);
@@ -93,7 +106,7 @@ export default function Dashboard() {
   const toggleAll = (c) => setSelectedIds(c ? rows.map((r) => r.id) : []);
   const toggleOne = (id, c) => setSelectedIds((s) => (c ? [...s, id] : s.filter((i) => i !== id)));
   const delSelected = async () => { if (selectedIds.length && confirm(`Delete ${selectedIds.length} receipt(s)?`)) await del.mutateAsync(selectedIds); };
-  const newFolder = () => { const n = prompt('New folder name:'); if (n && n.trim()) createFolder.mutate(n.trim()); };
+  const newFolder = async () => { const n = await askText('New folder name', { okLabel: 'Create' }); if (n && n.trim()) createFolder.mutate(n.trim()); };
 
   const Th = ({ field, children, right }) => (
     <th className={`px-4 py-2.5 text-xs font-semibold text-neutral-500 ${right ? 'text-right' : 'text-left'}`}>
@@ -116,7 +129,7 @@ export default function Dashboard() {
               <Th field="vendor_name">Vendor</Th>
               <Th>Country</Th>
               <Th field="total_amount" right>Total</Th>
-              <Th right>VAT</Th>
+              {!flat && <Th right>VAT</Th>}
               <Th>Status</Th>
               <Th right>Conf.</Th>
               <th className="px-4 py-2.5 w-10"></th>
@@ -136,8 +149,8 @@ export default function Dashboard() {
                   <div className="text-xs text-neutral-400 truncate max-w-[220px]">{r.file_name}</div>
                 </td>
                 <td className="px-4 py-2.5 text-neutral-500">{r.country || '—'}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums font-fig font-semibold text-neutral-900">{gbp(r.total_amount)}</td>
-                <td className="px-4 py-2.5 text-right tabular-nums font-fig text-neutral-500">{gbp(r.vat_amount)}{r.vat_rate ? <span className="text-neutral-300"> · {Math.round(r.vat_rate)}%</span> : ''}</td>
+                <td className="px-4 py-2.5 text-right tabular-nums font-fig font-semibold text-neutral-900">{money(r.total_amount, r.currency)}</td>
+                {!flat && <td className="px-4 py-2.5 text-right tabular-nums font-fig text-neutral-500">{money(r.vat_amount, r.currency)}{r.vat_rate ? <span className="text-neutral-300"> · {Math.round(r.vat_rate)}%</span> : ''}</td>}
                 <td className="px-4 py-2.5"><span className={`inline-block px-2 py-0.5 rounded text-xs border ${statusChip[r.status] || statusChip.uploaded}`}>{r.needs_review && !r.is_reviewed ? 'review' : r.status}</span></td>
                 <td className="px-4 py-2.5 text-right tabular-nums font-fig text-neutral-400">{r.confidence_score != null ? `${Math.round(r.confidence_score)}%` : '—'}</td>
                 <td className="px-4 py-2.5 text-right"><button onClick={() => setSelectedReceipt(r)} className="text-neutral-400 hover:text-neutral-900"><Eye className="w-4 h-4" /></button></td>
@@ -149,8 +162,8 @@ export default function Dashboard() {
               <tr>
                 <td className="px-4 py-3"></td>
                 <td className="px-4 py-3 text-[11px] uppercase tracking-[0.1em] font-medium text-neutral-500" colSpan={3}>Total · {rows.length} receipt{rows.length !== 1 ? 's' : ''}</td>
-                <td className="px-4 py-3 text-right tabular-nums font-fig font-semibold text-neutral-900">{gbp(rows.reduce((s, r) => s + (r.total_amount || 0), 0))}</td>
-                <td className="px-4 py-3 text-right tabular-nums font-fig font-semibold text-neutral-900">{gbp(rows.reduce((s, r) => s + (r.vat_amount || 0), 0))}</td>
+                <td className="px-4 py-3 text-right tabular-nums font-fig font-semibold text-neutral-900">{sumBy(rows, 'total_amount')}</td>
+                <td className="px-4 py-3 text-right tabular-nums font-fig font-semibold text-neutral-900">{sumBy(rows, 'vat_amount')}</td>
                 <td colSpan={3}></td>
               </tr>
             </tfoot>
@@ -167,26 +180,30 @@ export default function Dashboard() {
           <Trash2 className="w-4 h-4" /> Delete ({selectedIds.length})
         </Button>
       )}
-      {isRoot && <Button variant="outline" className="gap-2" onClick={newFolder}><FolderPlus className="w-4 h-4" /> New folder</Button>}
+      {isRoot && !flat && <Button variant="outline" className="gap-2" onClick={newFolder}><FolderPlus className="w-4 h-4" /> New folder</Button>}
       <Link to={createPageUrl('Reports')}><Button variant="outline" className="gap-2"><Download className="w-4 h-4" /> Export</Button></Link>
       <Link to={createPageUrl('Upload')}><Button className="gap-2 bg-neutral-900 hover:bg-neutral-800 text-white"><Upload className="w-4 h-4" /> Upload</Button></Link>
     </>
   );
 
   return (
-    <AppShell title="Documents" subtitle={`${stats.count} receipts · ${gbp(stats.total)} · VAT ${gbp(stats.vat)}`} actions={actions}>
+    <AppShell title={flat ? 'Payments' : 'Documents'} subtitle={flat ? `${stats.count} payments · ${stats.total} paid` : `${stats.count} receipts · ${stats.total} · VAT ${stats.vat}`} actions={actions}>
       {/* Stats — ledger strip */}
       <div className="mb-6">
-        <StatStrip items={[
-          { label: 'Total spend', value: gbp(stats.total) },
-          { label: 'Total VAT', value: gbp(stats.vat) },
+        <StatStrip items={flat ? [
+          { label: 'Total paid', value: stats.total },
+          { label: 'Payments', value: stats.count },
+          { label: 'Paid to', value: `${stats.vendors} supplier${stats.vendors === 1 ? '' : 's'}` },
+        ] : [
+          { label: 'Total spend', value: stats.total },
+          { label: 'Total VAT', value: stats.vat },
           { label: 'Receipts', value: stats.count },
           { label: 'Vendors', value: stats.vendors },
         ]} />
       </div>
 
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm mb-4">
+      {!flat && <div className="flex items-center gap-2 text-sm mb-4">
         <button onClick={() => { setCurrentFolderId(null); setSelectedIds([]); }} className={`inline-flex items-center gap-1.5 ${isRoot ? 'text-neutral-900 font-medium' : 'text-neutral-500 hover:text-neutral-900'}`}>
           <Folder className="w-4 h-4" /> All documents
         </button>
@@ -194,10 +211,10 @@ export default function Dashboard() {
           <>
             <ChevronRight className="w-4 h-4 text-neutral-300" />
             <span className="text-neutral-900 font-medium">{currentFolder?.name || 'Folder'}</span>
-            <button onClick={() => { const n = prompt('Rename folder:', currentFolder?.name); if (n && n.trim()) renameFolder.mutate({ id: currentFolderId, name: n.trim() }); }} className="ml-1 text-neutral-400 hover:text-neutral-700"><Pencil className="w-3.5 h-3.5" /></button>
+            <button onClick={async () => { const n = await askText('Rename folder', { defaultValue: currentFolder?.name, okLabel: 'Rename' }); if (n && n.trim()) renameFolder.mutate({ id: currentFolderId, name: n.trim() }); }} className="ml-1 text-neutral-400 hover:text-neutral-700"><Pencil className="w-3.5 h-3.5" /></button>
           </>
         )}
-      </div>
+      </div>}
 
       {/* Search */}
       <div className="relative mb-5 max-w-md">
@@ -206,7 +223,9 @@ export default function Dashboard() {
       </div>
 
       {/* ROOT: folder explorer + loose receipts. FOLDER: just the table */}
-      {isRoot && !searchQuery && (
+      {flat && (rows.length ? <Table /> : <p className="text-[13px] text-neutral-400 py-10 text-center bg-white border rule">{searchQuery ? 'Nothing matches.' : 'No receipts yet.'}</p>)}
+
+      {!flat && isRoot && !searchQuery && (
         <>
           {/* Folders — dense ledger table */}
           <div className="bg-white border rule overflow-hidden mb-8">
@@ -229,7 +248,7 @@ export default function Dashboard() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums font-fig text-neutral-600">{f.count}</td>
-                    <td className="px-4 py-3 text-right tabular-nums font-fig font-medium text-neutral-900">{gbp(f.total)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums font-fig font-medium text-neutral-900">{f.total}</td>
                     <td className="px-4 py-3 text-right"><ChevronRight className="w-4 h-4 text-neutral-300 group-hover:text-neutral-700" /></td>
                   </tr>
                 ))}
@@ -248,7 +267,7 @@ export default function Dashboard() {
         </>
       )}
 
-      {(!isRoot || searchQuery) && (
+      {!flat && (!isRoot || searchQuery) && (
         <>
           {!isRoot && (
             <button onClick={() => { setCurrentFolderId(null); setSelectedIds([]); }} className="inline-flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 mb-3">

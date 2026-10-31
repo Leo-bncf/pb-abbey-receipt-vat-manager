@@ -5,3 +5,7 @@ account_id = "18d991de07abf6a8c35cb04cdb9b940e"
 
 # Secret (set once, not stored here):
 #   wrangler secret put MISTRAL_API_KEY
+
+# Gemini path splits large PDFs (pdf-lib) — allow more CPU than the 30 s default.
+[limits]
+cpu_ms = 300000
